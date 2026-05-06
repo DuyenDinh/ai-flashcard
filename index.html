@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI Flashcard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════════════
+       HOME
+  ══════════════════════════════ -->
+  <div id="screen-home" class="screen">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">AI Flashcard</div>
+        <div class="topbar-sub">Swedish · English</div>
+      </div>
+    </div>
+
+    <div class="scroll-content">
+
+      <!-- Hero -->
+      <div class="home-hero">
+        <div class="home-hero-deco"></div>
+        <div class="home-hero-deco2"></div>
+        <div class="home-hero-eyebrow">Due today</div>
+        <div id="home-due-count" class="home-hero-count">0</div>
+        <div id="home-due-label" class="home-hero-label">cards to review</div>
+        <div id="home-streak" class="home-hero-streak">🔥 0 day streak</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-tile">
+          <div id="stat-total" class="stat-tile-val">0</div>
+          <div class="stat-tile-lbl">Total</div>
+        </div>
+        <div class="stat-tile">
+          <div id="stat-mastered" class="stat-tile-val">0</div>
+          <div class="stat-tile-lbl">Mastered</div>
+        </div>
+        <div class="stat-tile">
+          <div id="stat-due" class="stat-tile-val">0</div>
+          <div class="stat-tile-lbl">Due</div>
+        </div>
+      </div>
+
+      <!-- Review CTA -->
+      <button id="start-review-btn" class="cta-btn" onclick="startReview()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start Review
+      </button>
+
+      <!-- Sample cards -->
+      <button class="cta-btn ghost" onclick="loadSampleCards()">
+        ✨ &nbsp;Load sample cards
+      </button>
+
+      <!-- CEFR Breakdown -->
+      <div id="cefr-panel" style="display:none">
+        <div class="section-head">By level</div>
+        <div id="cefr-breakdown" class="cefr-rows"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       REVIEW
+  ══════════════════════════════ -->
+  <div id="screen-review" class="screen">
+    <div class="review-shell">
+
+      <div class="review-topbar">
+        <button class="review-close" onclick="showScreen('screen-home')">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <span id="review-counter" class="review-counter"></span>
+        <div style="width:32px"></div>
+      </div>
+
+      <!-- Session in progress -->
+      <div id="review-session">
+        <div class="progress-wrap">
+          <div class="progress-bg">
+            <div id="review-progress-fill" class="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Flip card -->
+        <div class="flip-scene" onclick="flipCard()">
+          <div id="flip-card" class="flip-card">
+
+            <div class="card-face front">
+              <span id="card-front-tag" class="card-tag"></span>
+              <div id="card-sv" class="card-word"></div>
+              <div id="card-ctx" class="card-context"></div>
+              <span class="card-hint-tap">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+                Tap to reveal
+              </span>
+            </div>
+
+            <div class="card-face back">
+              <span id="card-back-tag" class="card-tag"></span>
+              <div id="card-en" class="card-translation"></div>
+              <div id="card-sep" class="card-sep"></div>
+              <div id="card-ex-sv" class="card-ex-sv"></div>
+              <div id="card-ex-en" class="card-ex-en"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <div id="tap-hint" class="tap-hint-row">Tap the card to flip</div>
+
+        <div id="rating-section" class="rating-section hidden">
+          <div class="rating-q">How well did you know it?</div>
+          <div class="rating-row">
+            <button class="r-btn again" onclick="rateCard(0)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>Again
+            </button>
+            <button class="r-btn hard" onclick="rateCard(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>Hard
+            </button>
+            <button class="r-btn good" onclick="rateCard(3)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>Good
+            </button>
+            <button class="r-btn easy" onclick="rateCard(5)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>Easy
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Done state -->
+      <div id="review-done" class="done-shell hidden">
+        <div class="done-icon">🎉</div>
+        <div class="done-title">All done!</div>
+        <div id="done-count" class="done-sub"></div>
+        <button class="cta-btn mt-16" style="width:auto;padding:13px 36px" onclick="showScreen('screen-home')">
+          Back to home
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       DECK
+  ══════════════════════════════ -->
+  <div id="screen-deck" class="screen">
+    <div class="topbar">
+      <div class="topbar-title" id="deck-title">Deck</div>
+    </div>
+
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="deck-search" class="search-input" type="text"
+             placeholder="Search words…"
+             oninput="deckFilter.search=this.value; renderDeck()">
+    </div>
+
+    <div class="chips-row">
+      <div class="chip active" data-cefr="all" onclick="deckFilter.cefr=null;renderDeck()">All</div>
+      <div class="chip" data-cefr="A1" onclick="deckFilter.cefr='A1';renderDeck()">A1</div>
+      <div class="chip" data-cefr="A2" onclick="deckFilter.cefr='A2';renderDeck()">A2</div>
+      <div class="chip" data-cefr="B1" onclick="deckFilter.cefr='B1';renderDeck()">B1</div>
+      <div class="chip" data-cefr="B2" onclick="deckFilter.cefr='B2';renderDeck()">B2</div>
+      <div class="chip" data-cefr="C1" onclick="deckFilter.cefr='C1';renderDeck()">C1</div>
+      <div class="chip" data-cefr="C2" onclick="deckFilter.cefr='C2';renderDeck()">C2</div>
+    </div>
+
+    <div id="deck-list" class="deck-list"></div>
+    <div id="deck-empty" class="empty-state hidden">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-title">No cards yet</div>
+      <div class="empty-state-sub">Add cards from the + tab by translating a word or pasting Swedish text.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       ADD
+  ══════════════════════════════ -->
+  <div id="screen-add" class="screen">
+    <div class="topbar">
+      <div class="topbar-title">Add Cards</div>
+    </div>
+
+    <div class="add-content">
+
+      <!-- 4-tab toggle -->
+      <div class="tab-toggle" style="display:grid;grid-template-columns:repeat(4,1fr)">
+        <button class="tab-toggle-btn active" data-tab="single" onclick="switchAddTab('single')">Word</button>
+        <button class="tab-toggle-btn" data-tab="batch"  onclick="switchAddTab('batch')">Text</button>
+        <button class="tab-toggle-btn" data-tab="camera" onclick="switchAddTab('camera')">Camera</button>
+        <button class="tab-toggle-btn" data-tab="csv"    onclick="switchAddTab('csv')">CSV</button>
+      </div>
+
+      <!-- ── Single word ── -->
+      <div id="add-single-panel" class="card-panel">
+        <label class="field-label">Swedish word</label>
+        <div class="field-row" style="margin-bottom:0">
+          <input id="single-word" class="field-input" type="text" placeholder="e.g. kärlek"
+                 onkeydown="if(event.key==='Enter')doTranslate()">
+          <button class="cta-btn" style="width:auto;padding:11px 18px;font-size:13px;flex-shrink:0"
+                  onclick="doTranslate()">Translate</button>
+        </div>
+        <div id="single-loading" class="loader-wrap mt-10">
+          <div class="spinner"></div><span>Translating with Claude…</span>
+        </div>
+        <div id="translate-result" class="result-card mt-10">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <div id="tr-sv" class="result-sv"></div>
+            <div class="result-meta"><span id="tr-cefr" class="result-cefr"></span></div>
+          </div>
+          <div id="tr-en" class="result-en"></div>
+          <div id="tr-ex" class="result-ex"></div>
+          <button class="cta-btn mt-12" onclick="saveTranslatedCard()">Add to deck</button>
+        </div>
+        <p class="hint-text mt-10">Claude translates the word, assigns a CEFR level and generates an example sentence. Requires an API key in Settings.</p>
+      </div>
+
+      <!-- ── Batch text ── -->
+      <div id="add-batch-panel" class="card-panel hidden">
+        <label class="field-label">Paste Swedish text</label>
+        <textarea id="batch-text" class="field-textarea" placeholder="Paste any Swedish text — an article, a book passage, a social post…"></textarea>
+        <label class="field-label mt-10">Max CEFR level</label>
+        <select class="field-select" onchange="cfg.targetCEFR=this.value" id="batch-cefr-select">
+          <option value="A1">A1 — Beginner</option>
+          <option value="A2">A2 — Elementary</option>
+          <option value="B1" selected>B1 — Intermediate</option>
+          <option value="B2">B2 — Upper-Intermediate</option>
+          <option value="C1">C1 — Advanced</option>
+          <option value="C2">C2 — Mastery</option>
+        </select>
+        <button class="cta-btn mt-12" onclick="doBatchExtract()">Extract vocabulary</button>
+        <div id="batch-loading" class="loader-wrap mt-10">
+          <div class="spinner"></div><span>Extracting with Claude…</span>
+        </div>
+        <div id="word-selection" class="hidden">
+          <div class="section-head mt-12" id="word-sel-count">Select words to add</div>
+          <div id="word-list" class="word-list"></div>
+        </div>
+        <button id="batch-save-btn" class="cta-btn hidden" onclick="saveBatchCards()">
+          Add selected to deck
+        </button>
+      </div>
+
+      <!-- ── Camera / photo ── -->
+      <div id="add-camera-panel" class="card-panel hidden">
+        <!-- hidden file inputs -->
+        <input id="camera-capture" type="file" accept="image/*" capture="environment" class="hidden" onchange="onImageSelected(this)">
+        <input id="photo-library" type="file" accept="image/*" class="hidden" onchange="onImageSelected(this)">
+
+        <!-- source buttons -->
+        <div id="camera-source-btns" style="display:flex;flex-direction:column;gap:10px">
+          <button class="img-source-btn" onclick="document.getElementById('camera-capture').click()">
+            <span class="img-source-icon">📷</span>
+            <div>
+              <div class="img-source-title">Take a photo</div>
+              <div class="img-source-sub">Use your camera to capture text</div>
+            </div>
+          </button>
+          <button class="img-source-btn" onclick="document.getElementById('photo-library').click()">
+            <span class="img-source-icon">🖼️</span>
+            <div>
+              <div class="img-source-title">Choose from library</div>
+              <div class="img-source-sub">Pick an existing photo or screenshot</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- preview + scan -->
+        <div id="camera-preview-wrap" class="hidden">
+          <img id="camera-preview-img" class="img-preview" alt="Preview">
+          <button class="cta-btn" style="margin-top:12px" onclick="doImageExtract()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Scan with Claude
+          </button>
+          <button class="cta-btn ghost" style="margin-top:8px" onclick="resetCamera()">Choose different image</button>
+        </div>
+
+        <div id="camera-loading" class="loader-wrap mt-10">
+          <div class="spinner"></div><span>Scanning image with Claude…</span>
+        </div>
+
+        <label class="field-label mt-10" style="display:none" id="camera-cefr-label">Max CEFR level</label>
+        <select class="field-select hidden" id="camera-cefr-select" onchange="cfg.targetCEFR=this.value">
+          <option value="A1">A1 — Beginner</option>
+          <option value="A2">A2 — Elementary</option>
+          <option value="B1" selected>B1 — Intermediate</option>
+          <option value="B2">B2 — Upper-Intermediate</option>
+          <option value="C1">C1 — Advanced</option>
+          <option value="C2">C2 — Mastery</option>
+        </select>
+
+        <div id="camera-word-selection" class="hidden">
+          <div class="section-head mt-12" id="camera-sel-count">Select words to add</div>
+          <div id="camera-word-list" class="word-list"></div>
+        </div>
+        <button id="camera-save-btn" class="cta-btn hidden" onclick="saveCameraCards()">
+          Add selected to deck
+        </button>
+      </div>
+
+      <!-- ── CSV import ── -->
+      <div id="add-csv-panel" class="card-panel hidden">
+        <input id="csv-file-input" type="file" accept=".csv,.tsv,.txt" class="hidden" onchange="onCSVSelected(this)">
+
+        <div id="csv-drop-zone" class="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
+          <div class="csv-drop-icon">📄</div>
+          <div class="csv-drop-title">Choose a CSV file</div>
+          <div class="csv-drop-sub">Tap to browse</div>
+        </div>
+
+        <div class="csv-format-hint">
+          <div class="csv-format-title">Expected format</div>
+          <div class="csv-format-code">swedish,english<br>hej,hello<br>kärlek,love</div>
+          <div class="csv-format-note">Columns: <strong>swedish</strong>, <strong>english</strong>, and optionally <strong>cefr</strong>. First row can be a header.</div>
+        </div>
+
+        <div id="csv-col-picker" class="hidden"></div>
+
+        <div id="csv-preview" class="hidden">
+          <div class="section-head mt-12" id="csv-sel-count">Select rows to import</div>
+          <div class="csv-table-wrap">
+            <table id="csv-table" class="csv-table"></table>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="cta-btn ghost" style="flex:1;padding:10px" onclick="csvSelectAll(true)">Select all</button>
+            <button class="cta-btn ghost" style="flex:1;padding:10px" onclick="csvSelectAll(false)">Deselect all</button>
+          </div>
+        </div>
+
+        <button id="csv-save-btn" class="cta-btn hidden" onclick="saveCSVCards()">
+          Import selected
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SETTINGS
+  ══════════════════════════════ -->
+  <div id="screen-settings" class="screen">
+    <div class="topbar">
+      <div class="topbar-title">Settings</div>
+    </div>
+
+    <div class="settings-content">
+
+      <div class="settings-group">
+        <div class="settings-group-label">API Key</div>
+        <div class="settings-row" style="border-radius:var(--radius)">
+          <span class="settings-row-icon">🔑</span>
+          <input id="api-key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+          <button class="icon-btn" onclick="toggleKeyVisible()">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+          <button class="save-btn" onclick="saveApiKey()">Save</button>
+        </div>
+        <p class="hint-text" style="margin-top:6px">Stored in your browser only. Never shared.</p>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-label">Preferences</div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🎯</span>
+          <span class="settings-row-label">Target level</span>
+          <select id="cefr-select" onchange="saveCEFR()">
+            <option value="A1">A1</option><option value="A2">A2</option>
+            <option value="B1">B1</option><option value="B2">B2</option>
+            <option value="C1">C1</option><option value="C2">C2</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">📅</span>
+          <span class="settings-row-label">Daily goal</span>
+          <select id="goal-select" onchange="saveGoal()">
+            <option value="5">5 cards</option><option value="10">10 cards</option>
+            <option value="20">20 cards</option><option value="30">30 cards</option>
+            <option value="50">50 cards</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🔄</span>
+          <span class="settings-row-label">Study direction</span>
+          <select id="direction-select" onchange="saveStudyDirection()">
+            <option value="sv-en">Swedish → English</option>
+            <option value="en-sv">English → Swedish</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-label">Statistics</div>
+        <div class="settings-row">
+          <span class="settings-row-icon">📚</span>
+          <span class="settings-row-label">Total cards</span>
+          <span id="settings-total" class="settings-row-val">0</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🕐</span>
+          <span class="settings-row-label">Due today</span>
+          <span id="settings-due" class="settings-row-val">0</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">⭐</span>
+          <span class="settings-row-label">Mastered</span>
+          <span id="settings-mastered" class="settings-row-val">0</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🔥</span>
+          <span class="settings-row-label">Review streak</span>
+          <span id="settings-streak" class="settings-row-val">0 days</span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-label">Danger zone</div>
+        <button class="danger-btn" onclick="resetAllCards()">Delete all cards</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       TAB BAR
+  ══════════════════════════════ -->
+  <nav class="tabbar">
+    <button class="tab-btn active" data-screen="screen-home" onclick="showScreen('screen-home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Home</span>
+    </button>
+    <button class="tab-btn" data-screen="screen-deck" onclick="showScreen('screen-deck')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
+      </svg>
+      <span>Deck</span>
+    </button>
+    <button class="tab-btn" data-screen="screen-add" onclick="showScreen('screen-add')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+      </svg>
+      <span>Add</span>
+    </button>
+    <button class="tab-btn" data-screen="screen-settings" onclick="showScreen('screen-settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
