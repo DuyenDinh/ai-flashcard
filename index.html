@@ -1,488 +1,2388 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AI Flashcard</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Flashcard — Preview</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: #111;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+}
+:root {
+  --bg: #f7f7f5; --surface: #fff; --border: #e8e8e4;
+  --text: #1a1a18; --muted: #8a8a82; --subtle: #f0f0ec;
+  --accent: #0ea5e9; --accentL: #e0f2fe; --accentD: #0369a1;
+  --danger: #c0392b;
+  --a1: #22c55e; --a2: #14b8a6; --b1: #3b82f6;
+  --b2: #6366f1; --c1: #f97316; --c2: #ef4444;
+}
+
+/* ── PHONE SHELL ── */
+.phone {
+  width: 393px; height: 852px;
+  background: var(--bg);
+  border-radius: 52px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 10px #222, 0 0 0 11px #444, 0 30px 80px rgba(0,0,0,0.7);
+  display: flex; flex-direction: column;
+  user-select: none;
+}
+.dynamic-island {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 126px; height: 36px; background: #000;
+  border-radius: 20px; z-index: 200;
+}
+.status-bar {
+  height: 56px; padding: 0 28px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding-bottom: 8px; flex-shrink: 0; position: relative; z-index: 10;
+}
+.status-time { font-size: 15px; font-weight: 700; color: var(--text); }
+.status-icons { font-size: 13px; color: var(--text); letter-spacing: -1px; }
+
+/* ── SCREENS ── */
+.screen { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; position: relative; }
+.screen.active { display: flex; }
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* ── TAB BAR ── */
+.tab-bar {
+  height: 82px; background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; padding: 10px 0 0; flex-shrink: 0;
+}
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; background: none; border: none; padding: 0; }
+.tab-icon { font-size: 24px; line-height: 1; }
+.tab-label { font-size: 10px; font-weight: 600; color: var(--muted); }
+.tab.on .tab-label { color: var(--accent); }
+
+/* ── LIBRARY ── */
+.lib-header { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.lib-search-wrap { display: flex; align-items: center; gap: 8px; background: var(--subtle); border-radius: 14px; padding: 10px 14px; }
+.lib-search-input { flex: 1; border: none; background: transparent; font-size: 15px; color: var(--text); outline: none; font-family: inherit; }
+.lib-search-input::placeholder { color: var(--muted); }
+.lib-cats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.lib-cat { flex-shrink: 0; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.lib-cat.on { background: var(--accent); color: white; border-color: var(--accent); }
+.lib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px 24px; }
+.lib-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: transform 0.12s; }
+.lib-card:active { transform: scale(0.97); }
+.lib-card-emoji { font-size: 32px; line-height: 1; }
+.lib-card-name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.lib-card-meta { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.lib-card-stars { color: #f59e0b; font-size: 11px; }
+.lib-card-count { display: flex; align-items: center; gap: 4px; }
+.lib-card-import { margin-top: 4px; background: var(--accentL); color: var(--accent); border: none; border-radius: 10px; padding: 7px; font-size: 11px; font-weight: 700; cursor: pointer; width: 100%; }
+
+/* ── LIBRARY IMPORT SHEET ── */
+.lib-sheet-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 30; align-items: flex-end; }
+.lib-sheet { background: var(--bg); border-radius: 24px 24px 0 0; max-height: 75vh; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.lib-sheet-scroll { flex: 1; overflow-y: auto; padding: 8px 20px 0; scrollbar-width: none; }
+.lib-sheet-footer { padding: 12px 20px 36px; background: var(--bg); flex-shrink: 0; border-top: 1px solid var(--border); }
+.lib-sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 16px; }
+.lib-sheet-emoji { font-size: 48px; text-align: center; }
+.lib-sheet-title { font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; margin-top: 8px; }
+.lib-sheet-sub { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.lib-sheet-stats { display: flex; gap: 16px; margin-top: 14px; }
+.lib-sheet-stat { display: flex; flex-direction: column; gap: 2px; }
+.lib-sheet-stat-val { font-size: 18px; font-weight: 800; color: var(--text); }
+.lib-sheet-stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.lib-sheet-words { margin-top: 14px; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.lib-sheet-word { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.lib-sheet-word:last-child { border-bottom: none; }
+.lib-sheet-word-sv { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+.lib-sheet-word-en { font-size: 13px; color: var(--muted); }
+.lib-imported-badge { display:none; background:#dcfce7; color:#16a34a; border-radius:10px; padding:7px; font-size:12px; font-weight:700; text-align:center; margin-top:10px; }
+
+/* ── SHARED ── */
+.page-pad { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.section-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.4px; }
+.section-sub { font-size: 13px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+.group-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+.pill { border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 800; color: #fff; letter-spacing: 0.3px; }
+.btn-primary { background: var(--accent); border-radius: 16px; padding: 16px; text-align: center; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; border: none; width: 100%; }
+.btn-ghost { background: var(--surface); border-radius: 16px; padding: 16px; text-align: center; color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); width: 100%; }
+.btn-done { background: var(--subtle); color: var(--muted); cursor: default; }
+.surface-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.chip { padding: 6px 14px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; cursor: pointer; flex-shrink: 0; }
+.chip.on { background: var(--text); border-color: var(--text); color: #fff; }
+
+/* ── HOME ── */
+.hero { background: var(--accentD); border-radius: 24px; padding: 24px; position: relative; overflow: hidden; }
+.hero-d1 { position: absolute; right: -24px; top: -24px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.06); }
+.hero-d2 { position: absolute; right: 40px; bottom: -40px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,0.04); }
+.hero-streak { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 5px 11px; font-size: 12px; font-weight: 700; color: #fff; }
+.hero-eye { color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.hero-num { color: #fff; font-size: 72px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+.hero-lbl { color: rgba(255,255,255,0.75); font-size: 15px; margin-top: 4px; }
+.stats-row { display: flex; gap: 8px; }
+.stat-tile { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; text-align: center; }
+.stat-v { font-size: 24px; font-weight: 800; color: var(--text); }
+.stat-l { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+.cefr-list { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.cefr-row { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
+.cefr-row:last-child { border-bottom: none; }
+.cefr-name { flex: 1; font-size: 13px; color: var(--muted); font-weight: 500; }
+.cefr-cnt { font-size: 13px; font-weight: 700; min-width: 22px; text-align: right; }
+.cefr-bar-bg { width: 60px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.cefr-bar { height: 100%; border-radius: 3px; }
+
+/* ── DECK ── */
+.deck-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; display: flex; align-items: center; gap: 8px; }
+.dc-left { flex: 1; min-width: 0; }
+.dc-sv { font-size: 15px; font-weight: 700; color: var(--text); }
+.dc-en { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.dc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.due-badge { font-size: 11px; font-weight: 700; color: var(--danger); }
+.next-badge { font-size: 11px; color: var(--muted); }
+.icon-btn { font-size: 17px; cursor: pointer; background: none; border: none; padding: 4px; flex-shrink: 0; }
+
+/* ── ADD ── */
+.tab-switcher { display: flex; background: var(--subtle); border-radius: 12px; padding: 3px; }
+.tsw-btn { flex: 1; border-radius: 9px; padding: 8px 4px; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; background: none; border: none; transition: background 0.15s; }
+.tsw-btn.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.add-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.fld-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.fld-row { display: flex; gap: 8px; }
+.fld-input { flex: 1; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 13px; font-size: 14px; color: var(--text); background: var(--bg); outline: none; font-family: inherit; }
+.fld-input:focus { border-color: var(--accent); }
+.fld-btn { background: var(--accent); border-radius: 10px; padding: 10px 16px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; border: none; white-space: nowrap; }
+.result-box { background: var(--accentL); border-radius: 14px; padding: 16px; }
+.result-sv { font-size: 28px; font-weight: 700; color: var(--text); }
+.result-en { font-size: 18px; font-weight: 600; color: var(--accent); margin-top: 2px; }
+.result-ex { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 8px; line-height: 1.5; }
+.hint-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.source-row { display: flex; align-items: center; gap: 14px; padding: 14px; background: var(--bg); border-radius: 14px; border: 1.5px solid var(--border); cursor: pointer; }
+.source-ico { font-size: 28px; }
+.source-t { font-size: 14px; font-weight: 700; color: var(--text); }
+.source-s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.drop-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 28px; text-align: center; cursor: pointer; }
+.drop-ico { font-size: 36px; margin-bottom: 6px; }
+.drop-t { font-size: 15px; font-weight: 700; color: var(--text); }
+.drop-s { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.mini-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.mini-chip { padding: 5px 11px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.mini-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── REVIEW ── */
+.rv-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
+.rv-close { width: 32px; height: 32px; border-radius: 50%; background: var(--subtle); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); font-weight: 600; cursor: pointer; border: none; }
+.rv-counter { font-size: 13px; font-weight: 600; color: var(--muted); }
+.rv-prog-bg { height: 4px; background: var(--border); margin: 0 16px; border-radius: 2px; }
+.rv-prog-fill { height: 4px; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.35s ease; }
+.rv-body { flex: 1; padding: 0 16px 16px; display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+.flip-area { flex: 1; display: flex; align-items: stretch; padding: 8px 0 0; cursor: pointer; min-height: 0; }
+.card-face {
+  flex: 1; width: 100%;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 26px; padding: 28px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.07);
+  transition: background 0.25s;
+}
+.card-face.flipped { background: var(--accentL); border-color: #bae6fd; }
+.cefr-tag { position: absolute; top: 16px; left: 16px; border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 800; color: #fff; }
+.card-word { font-size: 46px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; text-align: center; }
+.card-translation { font-size: 36px; font-weight: 700; color: var(--text); text-align: center; }
+.card-ex-sv { font-size: 13px; color: var(--muted); font-style: italic; text-align: center; line-height: 1.6; max-width: 260px; }
+.card-ex-en { font-size: 12px; color: #b0b0a8; text-align: center; line-height: 1.5; max-width: 260px; margin-top: 4px; }
+.card-sep { width: 32px; height: 1.5px; background: var(--border); margin: 12px 0; }
+.speak-btn { background: var(--subtle); border-radius: 20px; padding: 8px 14px; margin-top: 12px; font-size: 20px; cursor: pointer; border: none; }
+.speak-btn:active { background: var(--border); }
+.tap-hint-abs { position: absolute; bottom: 16px; font-size: 11px; color: var(--muted); font-weight: 500; }
+.tap-hint-row { text-align: center; font-size: 12px; color: var(--muted); font-weight: 500; padding-bottom: 8px; }
+.rating-wrap { display: flex; flex-direction: column; gap: 8px; }
+.rating-q { text-align: center; font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; }
+.rating-row { display: flex; gap: 8px; }
+.r-btn { flex: 1; border-radius: 14px; padding: 13px 0; text-align: center; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+.done-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; }
+.done-icon { font-size: 72px; }
+.done-title { font-size: 26px; font-weight: 800; color: var(--text); }
+.done-sub { font-size: 15px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+/* ── SETTINGS ── */
+.s-row { background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 13px; }
+.s-row.top { border-radius: 14px 14px 0 0; border-bottom: none; }
+.s-row.mid { border-bottom: none; }
+.s-row.bot { border-radius: 0 0 14px 14px; }
+.s-row.only { border-radius: 14px; }
+.s-icon { font-size: 18px; width: 28px; text-align: center; }
+.s-label { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+.s-val { font-size: 13px; color: var(--muted); }
+.s-key-input { flex: 1; font-size: 13px; color: var(--text); background: none; border: none; outline: none; font-family: monospace; }
+.s-save { background: var(--accent); border-radius: 8px; padding: 6px 14px; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+.btn-danger { border: 1.5px solid var(--danger); border-radius: 14px; padding: 14px; text-align: center; color: var(--danger); font-size: 14px; font-weight: 700; cursor: pointer; background: none; width: 100%; }
+.s-select { width: 118px; flex-shrink: 0; appearance: none; -webkit-appearance: none; background: var(--subtle) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a8a82' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 9px center; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 26px 7px 9px; font-size: 13px; font-weight: 600; color: var(--text); font-family: inherit; cursor: pointer; outline: none; }
+.s-select:focus { border-color: var(--accent); }
+.s-direction-tag { background: var(--accentL); border: 1.5px solid var(--accent); border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 700; color: var(--accentD); letter-spacing: 0.3px; cursor: pointer; user-select: none; transition: background 0.15s, transform 0.15s; display: flex; align-items: center; gap: 6px; }
+.s-direction-tag:active { background: #bae6fd; transform: scale(0.97); }
+
+/* ── DECK PICKER MODAL ── */
+.modal-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; align-items: flex-end; }
+.modal-overlay.open { display: flex; }
+.modal-sheet { background: var(--bg); border-radius: 26px 26px 0 0; width: 100%; max-height: 88%; display: flex; flex-direction: column; }
+.modal-drag { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 4px; }
+.modal-title { font-size: 20px; font-weight: 800; color: var(--text); }
+.modal-close-btn { width: 30px; height: 30px; border-radius: 50%; background: var(--subtle); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); cursor: pointer; border: none; font-weight: 700; }
+.modal-sub { font-size: 13px; color: var(--muted); padding: 2px 20px 12px; }
+.modal-list { overflow-y: auto; padding: 0 16px 32px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: none; }
+.modal-list::-webkit-scrollbar { display: none; }
+.load-all { background: var(--accentD); border-radius: 16px; padding: 15px; text-align: center; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; border: none; width: 100%; }
+.deck-item { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.deck-item:active { background: var(--subtle); }
+.di-badge { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.di-badge span { color: #fff; font-size: 14px; font-weight: 800; }
+.di-info { flex: 1; min-width: 0; }
+.di-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.di-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.di-meta { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+.di-arrow { font-size: 20px; color: var(--muted); }
+
+/* ── ONBOARDING ── */
+.ob-grad { flex: 1; display: flex; flex-direction: column; background: linear-gradient(150deg, #0369a1 0%, #0284c7 55%, #0ea5e9 100%); position: relative; overflow: hidden; }
+.ob-circle1 { position: absolute; width: 240px; height: 240px; border-radius: 50%; background: rgba(255,255,255,0.07); top: -70px; right: -70px; pointer-events: none; }
+.ob-circle2 { position: absolute; width: 160px; height: 160px; border-radius: 50%; background: rgba(255,255,255,0.04); bottom: 80px; left: -50px; pointer-events: none; }
+.ob-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 28px 0; gap: 16px; position: relative; z-index: 1; }
+.ob-logo { font-size: 56px; line-height: 1; }
+.ob-headline { font-size: 28px; font-weight: 800; color: #fff; text-align: center; line-height: 1.2; letter-spacing: -0.5px; }
+.ob-sub { font-size: 14px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.65; max-width: 270px; }
+.ob-visual { background: rgba(255,255,255,0.13); border-radius: 20px; padding: 14px; width: 100%; backdrop-filter: blur(4px); }
+.ob-photo { background: #fff; border-radius: 12px; padding: 13px 15px; font-size: 12.5px; color: #444; line-height: 1.75; position: relative; overflow: hidden; }
+.ob-hl { background: #fef08a; border-radius: 3px; padding: 0 3px; font-weight: 700; color: #1a1a18; }
+.ob-scanline { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent 0%, #0ea5e9 40%, #38bdf8 60%, transparent 100%); animation: obScan 1.8s ease-in-out infinite; top: 0; }
+@keyframes obScan { 0%{top:0;opacity:0} 8%{opacity:1} 90%{opacity:.8} 100%{top:100%;opacity:0} }
+.ob-chips { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.ob-wchip { background: rgba(255,255,255,0.92); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 4px; animation: obPop 0.3s ease both; }
+@keyframes obPop { from{opacity:0;transform:scale(0.8) translateY(4px)} to{opacity:1;transform:none} }
+.ob-footer { background: var(--bg); border-radius: 24px 24px 0 0; padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.ob-skip { background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px; text-align: center; font-family: inherit; }
+/* Step screens */
+.ob-step { flex: 1; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+.ob-step-scroll { flex: 1; overflow-y: auto; padding: 12px 20px 8px; display: flex; flex-direction: column; gap: 18px; scrollbar-width: none; }
+.ob-dots { display: flex; gap: 6px; padding: 4px 0; }
+.ob-dot { width: 7px; height: 7px; border-radius: 4px; background: var(--border); transition: all 0.25s; }
+.ob-dot.on { width: 22px; background: var(--accent); }
+.ob-step-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; line-height: 1.2; }
+.ob-step-sub { font-size: 13px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
+/* Lang select */
+.ob-lang-block { display: flex; flex-direction: column; gap: 8px; }
+.ob-lang-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.ob-lang-sel { width: 100%; appearance: none; -webkit-appearance: none; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a8a82' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center; border: 1.5px solid var(--border); border-radius: 14px; padding: 15px 42px 15px 16px; font-size: 15px; font-weight: 600; color: var(--text); font-family: inherit; cursor: pointer; outline: none; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.ob-lang-sel:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accentL); }
+/* Goal tiles */
+.ob-goal-grid { display: flex; flex-direction: column; gap: 10px; }
+.ob-goal-tile { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: row; align-items: center; gap: 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.1s; text-align: left; }
+.ob-goal-tile:active { transform: scale(0.98); }
+.ob-goal-tile.on { background: var(--accentL); border-color: var(--accent); }
+.ob-goal-tile.on .ob-goal-check { opacity: 1; }
+.ob-goal-ico { font-size: 32px; line-height: 1; flex-shrink: 0; }
+.ob-goal-text { flex: 1; }
+.ob-goal-lbl { font-size: 15px; font-weight: 800; color: var(--text); line-height: 1.2; }
+.ob-goal-sub { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+.ob-goal-check { font-size: 18px; color: var(--accent); opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+/* Demo */
+.ob-demo-photo { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 16px 18px; font-size: 13px; color: #555; line-height: 1.8; position: relative; overflow: hidden; }
+.ob-demo-cam-bar { background: var(--text); border-radius: 10px 10px 0 0; padding: 8px 14px; display: flex; align-items: center; gap: 8px; margin: -16px -18px 12px; }
+.ob-demo-cam-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ob-scan-overlay { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; }
+.ob-scan-beam { position: absolute; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #0ea5e9, transparent); display: none; }
+@keyframes beamDown { from{top:40px} to{top:calc(100% - 8px)} }
+.ob-scan-beam.running { display: block; animation: beamDown 1.2s ease-in-out; }
+.ob-detected-wrap { display: flex; flex-direction: column; gap: 8px; }
+.ob-det-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; animation: obPop 0.3s ease both; }
+.ob-det-sv { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+.ob-det-en { font-size: 13px; color: var(--muted); }
+.ob-det-pill { font-size: 10px; font-weight: 800; color: #fff; border-radius: 5px; padding: 2px 7px; }
+/* Demo card */
+.ob-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 170px; position: relative; box-shadow: 0 6px 24px rgba(0,0,0,0.07); }
+.ob-card.flipped { background: var(--accentL); border-color: #bae6fd; }
+.ob-card-word { font-size: 42px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.ob-card-trans { font-size: 30px; font-weight: 700; color: var(--text); }
+.ob-card-ex { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; line-height: 1.6; max-width: 220px; }
+.ob-card-hint { font-size: 11px; color: var(--muted); font-weight: 500; }
+.ob-ready-box { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 12px; }
+.ob-ready-ico { font-size: 32px; }
+.ob-ready-title { font-size: 15px; font-weight: 800; color: #15803d; }
+.ob-ready-sub { font-size: 12px; color: #166534; margin-top: 2px; }
+</style>
 </head>
 <body>
-<div id="app">
+<div class="phone">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <span class="status-icons">▲▲▲ 100%</span>
+  </div>
 
-  <!-- ══════════════════════════════
-       HOME
-  ══════════════════════════════ -->
-  <div id="screen-home" class="screen">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">AI Flashcard</div>
-        <div class="topbar-sub">Swedish · English</div>
-      </div>
-    </div>
-
-    <div class="scroll-content">
-
-      <!-- Hero -->
-      <div class="home-hero">
-        <div class="home-hero-deco"></div>
-        <div class="home-hero-deco2"></div>
-        <div class="home-hero-eyebrow">Due today</div>
-        <div id="home-due-count" class="home-hero-count">0</div>
-        <div id="home-due-label" class="home-hero-label">cards to review</div>
-        <div id="home-streak" class="home-hero-streak">🔥 0 day streak</div>
-      </div>
-
-      <!-- Stats -->
-      <div class="stats-row">
-        <div class="stat-tile">
-          <div id="stat-total" class="stat-tile-val">0</div>
-          <div class="stat-tile-lbl">Total</div>
-        </div>
-        <div class="stat-tile">
-          <div id="stat-mastered" class="stat-tile-val">0</div>
-          <div class="stat-tile-lbl">Mastered</div>
-        </div>
-        <div class="stat-tile">
-          <div id="stat-due" class="stat-tile-val">0</div>
-          <div class="stat-tile-lbl">Due</div>
+  <!-- ══ ONBOARDING 1: WELCOME ══ -->
+  <div class="screen active" id="s-ob-welcome">
+    <div class="ob-grad">
+      <div class="ob-circle1"></div><div class="ob-circle2"></div>
+      <div class="ob-main">
+        <div class="ob-logo">🧠</div>
+        <div class="ob-headline">Learn any language<br>with AI support</div>
+        <div class="ob-sub">Scan words from photos, menus, books — anywhere, anytime. AI detects new words and builds your personal deck automatically.</div>
+        <!-- Live scan visual -->
+        <div class="ob-visual">
+          <div class="ob-photo">
+            <div class="ob-scanline"></div>
+            Välkommen! Vi erbjuder <span class="ob-hl">färska</span> råvaror och <span class="ob-hl">hemlagad</span> mat. Öppet <span class="ob-hl">varje</span> dag.
+          </div>
+          <div class="ob-chips">
+            <div class="ob-wchip" style="animation-delay:0.1s">✦ färska · fresh</div>
+            <div class="ob-wchip" style="animation-delay:0.3s">✦ hemlagad · homemade</div>
+            <div class="ob-wchip" style="animation-delay:0.5s">✦ varje · every</div>
+          </div>
         </div>
       </div>
-
-      <!-- Review CTA -->
-      <button id="start-review-btn" class="cta-btn" onclick="startReview()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Start Review
-      </button>
-
-      <!-- Sample cards -->
-      <button class="cta-btn ghost" onclick="loadSampleCards()">
-        ✨ &nbsp;Load sample cards
-      </button>
-
-      <!-- CEFR Breakdown -->
-      <div id="cefr-panel" style="display:none">
-        <div class="section-head">By level</div>
-        <div id="cefr-breakdown" class="cefr-rows"></div>
+      <div class="ob-footer">
+        <button class="btn-primary" style="font-size:16px;padding:17px" onclick="nav('ob-lang')">Get started →</button>
+        <button class="ob-skip" onclick="skipOnboarding()">I'll explore on my own</button>
       </div>
-
     </div>
   </div>
 
-  <!-- ══════════════════════════════
-       REVIEW
-  ══════════════════════════════ -->
-  <div id="screen-review" class="screen">
-    <div class="review-shell">
-
-      <div class="review-topbar">
-        <button class="review-close" onclick="showScreen('screen-home')">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-        <span id="review-counter" class="review-counter"></span>
-        <div style="width:32px"></div>
+  <!-- ══ ONBOARDING 2: LANGUAGE ══ -->
+  <div class="screen" id="s-ob-lang">
+    <div class="ob-step">
+      <div class="ob-step-scroll" style="padding-top:28px">
+        <div class="ob-dots">
+          <div class="ob-dot on"></div><div class="ob-dot"></div><div class="ob-dot"></div>
+        </div>
+        <div style="text-align:center;font-size:72px;margin:8px 0 4px">🇸🇪</div>
+        <div>
+          <div class="ob-step-title">Which language<br>are you learning?</div>
+          <div class="ob-step-sub" style="margin-top:6px">You can add more languages later.</div>
+        </div>
+        <div class="ob-lang-block">
+          <div class="ob-lang-lbl">Study language</div>
+          <select class="ob-lang-sel" id="ob-study-lang" onchange="obUpdateGoalTitle()">
+            <option value="sv" selected>🇸🇪 Swedish</option>
+            <option value="de" disabled>🇩🇪 German (coming soon)</option>
+            <option value="fr" disabled>🇫🇷 French (coming soon)</option>
+            <option value="es" disabled>🇪🇸 Spanish (coming soon)</option>
+            <option value="ja" disabled>🇯🇵 Japanese (coming soon)</option>
+          </select>
+        </div>
+        <div class="ob-lang-block">
+          <div class="ob-lang-lbl">I already speak</div>
+          <select class="ob-lang-sel" id="ob-from-lang">
+            <option value="en" selected>🇬🇧 English</option>
+            <option value="de" disabled>🇩🇪 German (coming soon)</option>
+            <option value="fr" disabled>🇫🇷 French (coming soon)</option>
+          </select>
+        </div>
       </div>
+      <div style="padding:12px 20px 24px;display:flex;flex-direction:column;gap:10px;flex-shrink:0">
+        <button class="btn-primary" style="font-size:15px" onclick="nav('ob-goal')">Continue →</button>
+      </div>
+    </div>
+  </div>
 
-      <!-- Session in progress -->
-      <div id="review-session">
-        <div class="progress-wrap">
-          <div class="progress-bg">
-            <div id="review-progress-fill" class="progress-fill" style="width:0%"></div>
+  <!-- ══ ONBOARDING 3: GOAL ══ -->
+  <div class="screen" id="s-ob-goal">
+    <div class="ob-step">
+      <div class="ob-step-scroll" style="padding-top:28px">
+        <div class="ob-dots">
+          <div class="ob-dot"></div><div class="ob-dot on"></div><div class="ob-dot"></div>
+        </div>
+        <div>
+          <div class="ob-step-title" id="ob-goal-title">What's your Swedish goal?</div>
+          <div class="ob-step-sub" style="margin-top:6px">We'll load the right starter deck for you.</div>
+        </div>
+        <div class="ob-goal-grid">
+          <div class="ob-goal-tile on" onclick="obPickGoal(this,'a1')" id="goal-travel">
+            <div class="ob-goal-ico">✈️</div>
+            <div class="ob-goal-text">
+              <div class="ob-goal-lbl">Travel & Basics</div>
+              <div class="ob-goal-sub">Greetings, numbers, everyday words</div>
+            </div>
+            <div class="ob-goal-check">✓</div>
+          </div>
+          <div class="ob-goal-tile" onclick="obPickGoal(this,'a2')" id="goal-daily">
+            <div class="ob-goal-ico">💬</div>
+            <div class="ob-goal-text">
+              <div class="ob-goal-lbl">Daily Conversations</div>
+              <div class="ob-goal-sub">Shopping, transport, time & weather</div>
+            </div>
+            <div class="ob-goal-check">✓</div>
+          </div>
+          <div class="ob-goal-tile" onclick="obPickGoal(this,'b1')" id="goal-work">
+            <div class="ob-goal-ico">💼</div>
+            <div class="ob-goal-text">
+              <div class="ob-goal-lbl">Work & Professional</div>
+              <div class="ob-goal-sub">Meetings, emails, opinions & plans</div>
+            </div>
+            <div class="ob-goal-check">✓</div>
+          </div>
+          <div class="ob-goal-tile" onclick="obPickGoal(this,'c1')" id="goal-fluent">
+            <div class="ob-goal-ico">🎓</div>
+            <div class="ob-goal-text">
+              <div class="ob-goal-lbl">Full Fluency</div>
+              <div class="ob-goal-sub">Nuance, complex topics, near-native</div>
+            </div>
+            <div class="ob-goal-check">✓</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 20px 24px;display:flex;flex-direction:column;gap:10px;flex-shrink:0">
+        <button class="btn-primary" style="font-size:15px" onclick="nav('ob-demo')">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ONBOARDING 4: LIVE DEMO ══ -->
+  <div class="screen" id="s-ob-demo">
+    <div class="ob-step">
+      <div class="ob-step-scroll" id="ob-demo-scroll" style="padding-top:28px">
+        <div class="ob-dots">
+          <div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div>
+        </div>
+        <div>
+          <div class="ob-step-title">See how scanning works</div>
+          <div class="ob-step-sub" style="margin-top:6px">Point your camera at any text — menu, book, sign — and AI pulls out new words instantly.</div>
+        </div>
+
+        <!-- Step 0: Photo + scan button -->
+        <div id="ob-demo-s0">
+          <div class="ob-demo-photo">
+            <div class="ob-demo-cam-bar">
+              <div class="ob-demo-cam-dot" style="background:#ef4444"></div>
+              <div class="ob-demo-cam-dot" style="background:#f59e0b"></div>
+              <div class="ob-demo-cam-dot" style="background:#22c55e"></div>
+              <span style="color:rgba(255,255,255,0.6);font-size:11px;margin-left:4px">Foto — Meny.jpg</span>
+            </div>
+            <span id="ob-sv1">Restaurangen</span> erbjuder <span id="ob-sv2">vällagad</span> husmanskost med <span id="ob-sv3">säsongens</span> råvaror.
+            <div class="ob-scan-overlay"><div class="ob-scan-beam" id="ob-beam"></div></div>
+          </div>
+          <button class="btn-primary" style="margin-top:12px" onclick="obRunScan()">📷  Scan this text</button>
+        </div>
+
+        <!-- Step 1: Detected words (hidden initially) -->
+        <div id="ob-demo-s1" style="display:none;flex-direction:column;gap:14px">
+          <!-- Add mode toggle -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
+            <div id="ob-add-all" onclick="obSetAddMode('all')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--border);background:var(--accentL);border-left:3.5px solid var(--accent);transition:all 0.15s">
+              <span style="font-size:18px">📚</span>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:700;color:var(--text)">Add all words</div>
+                <div id="ob-all-sub" style="font-size:12px;color:var(--muted);margin-top:1px">All 3 words added to your deck</div>
+              </div>
+              <span id="ob-check-all" style="font-size:15px;color:var(--accent);font-weight:700">✓</span>
+            </div>
+            <div id="ob-add-level" onclick="obSetAddMode('level')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;border-left:3.5px solid transparent;transition:all 0.15s">
+              <span style="font-size:18px">🎯</span>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:700;color:var(--text)">Words at my level only</div>
+                <div id="ob-level-sub" style="font-size:12px;color:var(--muted);margin-top:1px">A1 only · 1 of 3 words</div>
+              </div>
+              <span id="ob-check-level" style="font-size:15px;color:var(--accent);font-weight:700;opacity:0">✓</span>
+            </div>
+          </div>
+          <!-- Word list with individual toggles -->
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">✦ 3 words detected — tap to add or remove</div>
+          <div class="ob-detected-wrap" id="ob-word-list">
+            <div class="ob-det-row" id="ob-word-0" onclick="obToggleWord(0)" style="animation-delay:0.05s;cursor:pointer">
+              <span class="ob-det-pill" style="background:var(--a1)">A1</span>
+              <div style="flex:1"><div class="ob-det-sv">restaurangen</div><div class="ob-det-en">the restaurant</div></div>
+              <div id="ob-tog-0" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
+                <span style="color:white;font-size:13px;font-weight:800">✓</span>
+              </div>
+            </div>
+            <div class="ob-det-row" id="ob-word-1" onclick="obToggleWord(1)" style="animation-delay:0.15s;cursor:pointer">
+              <span class="ob-det-pill" style="background:var(--b1)">B1</span>
+              <div style="flex:1"><div class="ob-det-sv">vällagad</div><div class="ob-det-en">well-cooked</div></div>
+              <div id="ob-tog-1" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
+                <span style="color:white;font-size:13px;font-weight:800">✓</span>
+              </div>
+            </div>
+            <div class="ob-det-row" id="ob-word-2" onclick="obToggleWord(2)" style="animation-delay:0.25s;cursor:pointer">
+              <span class="ob-det-pill" style="background:var(--b2)">B2</span>
+              <div style="flex:1"><div class="ob-det-sv">säsongens</div><div class="ob-det-en">of the season</div></div>
+              <div id="ob-tog-2" style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
+                <span style="color:white;font-size:13px;font-weight:800">✓</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Flip card -->
-        <div class="flip-scene" onclick="flipCard()">
-          <div id="flip-card" class="flip-card">
+        <!-- Step 2: Card flip demo (hidden initially) -->
+        <div id="ob-demo-s2" style="display:none;flex-direction:column;gap:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">✦ Your flashcard — tap to flip</div>
+          <div class="ob-card" id="ob-demo-card" onclick="obFlipCard()">
+            <span class="cefr-tag" style="background:var(--a1);position:absolute;top:14px;left:14px">A1</span>
+            <div class="ob-card-word">restaurangen</div>
+            <div class="ob-card-hint">👆 Tap to reveal</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 20px 24px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+        <button class="btn-primary" id="ob-footer-s1" style="font-size:15px;display:none" onclick="obShowCard()">See how you'll study them →</button>
+        <button class="btn-primary" id="ob-start-btn" style="font-size:15px;display:none" onclick="finishOnboarding()">Start learning →</button>
+      </div>
+    </div>
+  </div>
 
-            <div class="card-face front">
-              <span id="card-front-tag" class="card-tag"></span>
-              <div id="card-sv" class="card-word"></div>
-              <div id="card-ctx" class="card-context"></div>
-              <span class="card-hint-tap">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
-                Tap to reveal
-              </span>
+  <!-- ══ HOME ══ -->
+  <div class="screen" id="s-home">
+    <div class="scroll">
+      <div class="page-pad">
+        <div>
+          <div class="section-title">AI Flashcard</div>
+          <div class="section-sub">Swedish · English</div>
+        </div>
+        <!-- EMPTY STATE: shown when user has no decks -->
+        <div id="home-empty" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:32px 8px 16px;text-align:center">
+          <div style="font-size:64px;line-height:1">📖</div>
+          <div style="font-size:21px;font-weight:800;color:var(--text);letter-spacing:-0.3px">Start your learning journey</div>
+          <div style="font-size:14px;color:var(--muted);line-height:1.65;max-width:280px">Add your first card or explore community decks in the Library to get started.</div>
+          <button class="btn-primary" onclick="nav('library')" style="width:100%;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span style="font-size:18px">📚</span> Explore Library
+          </button>
+          <button class="btn-ghost" onclick="nav('add')" style="width:100%">+ Add a card manually</button>
+        </div>
+
+        <!-- HAS-DECKS STATE: shown when user has decks -->
+        <div id="home-has-decks" style="display:none;flex-direction:column;gap:12px">
+          <div class="hero">
+            <div class="hero-d1"></div><div class="hero-d2"></div>
+            <div class="hero-streak">🔥 3 days</div>
+            <div class="hero-eye">DUE TODAY</div>
+            <div class="hero-num" id="home-due-num">0</div>
+            <div class="hero-lbl" id="home-due-lbl">cards due today</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-tile"><div class="stat-v" id="home-stat-total">0</div><div class="stat-l">Total</div></div>
+            <div class="stat-tile"><div class="stat-v" id="home-stat-mastered">0</div><div class="stat-l">Mastered</div></div>
+            <div class="stat-tile"><div class="stat-v" id="home-stat-due">0</div><div class="stat-l">Due</div></div>
+          </div>
+          <button class="btn-primary" id="home-review-btn" onclick="goReview()">▶  Start Review</button>
+          <!-- MY DECKS section -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div class="group-label" style="margin-bottom:0">MY DECKS</div>
+              <div style="display:flex;background:var(--subtle);border-radius:8px;padding:2px;gap:1px">
+                <button id="mode-deck" onclick="setDeckMode('deck')" style="padding:5px 12px;border-radius:6px;background:var(--surface);font-size:12px;font-weight:700;color:var(--text);border:none;cursor:pointer">By Deck</button>
+                <button id="mode-level" onclick="setDeckMode('level')" style="padding:5px 12px;border-radius:6px;background:none;font-size:12px;font-weight:700;color:var(--muted);border:none;cursor:pointer">By Level</button>
+              </div>
             </div>
-
-            <div class="card-face back">
-              <span id="card-back-tag" class="card-tag"></span>
-              <div id="card-en" class="card-translation"></div>
-              <div id="card-sep" class="card-sep"></div>
-              <div id="card-ex-sv" class="card-ex-sv"></div>
-              <div id="card-ex-en" class="card-ex-en"></div>
+            <div id="home-deck-content"></div>
+            <div id="home-see-all" style="text-align:center;padding:4px 0 8px">
+              <span onclick="openDeckDetail('all')" style="font-size:13px;color:var(--accent);font-weight:600;cursor:pointer" id="home-see-all-link">See all cards →</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- Deck Detail Overlay -->
+    <div id="deck-detail-overlay" style="display:none;position:absolute;inset:0;background:var(--bg);z-index:20;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px 8px;flex-shrink:0">
+        <button onclick="closeDeckDetail()" style="width:32px;height:32px;border-radius:50%;background:var(--subtle);border:none;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text)">‹</button>
+        <div id="detail-title" style="flex:1;font-size:18px;font-weight:800;color:var(--text)"></div>
+        <button id="detail-delete-btn" onclick="deleteDeck()" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;border-radius:8px" title="Delete deck">🗑</button>
+      </div>
+      <div class="scroll">
+        <div style="padding:0 16px 24px;display:flex;flex-direction:column;gap:12px">
+          <div id="detail-stats" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;text-align:center"></div>
+          <div id="detail-progress" style="display:flex;flex-direction:column;gap:6px"></div>
+          <input class="fld-input" style="width:100%;background:var(--surface)" placeholder="Search cards…">
+          <div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;padding-right:16px" id="status-chips"></div>
+          <div id="detail-cards" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Quick-View Sheet -->
+    <div id="card-quick-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:40;align-items:flex-end" onclick="closeCardQuick()">
+      <div id="card-quick-sheet" style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-height:80%;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+        <!-- Handle -->
+        <div style="display:flex;justify-content:center;padding:12px 0 4px">
+          <div style="width:36px;height:4px;border-radius:2px;background:var(--border)"></div>
+        </div>
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px 12px">
+          <div id="cq-cefr" style="border-radius:6px;padding:3px 9px;font-size:11px;font-weight:800;color:white"></div>
+          <button onclick="closeCardQuick()" style="background:var(--subtle);border:none;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
+        </div>
+        <!-- Card face -->
+        <div style="padding:0 20px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="cq-sv" style="font-size:42px;font-weight:800;color:var(--text);letter-spacing:-0.5px"></div>
+            <button onclick="speak(document.getElementById('cq-sv').textContent,'sv')" style="background:var(--subtle);border:none;border-radius:20px;padding:6px 8px;font-size:18px;cursor:pointer">🔊</button>
+          </div>
+          <div id="cq-en" style="font-size:22px;font-weight:600;color:var(--muted)"></div>
+          <div id="cq-sep" style="width:36px;height:1.5px;background:var(--border);margin:4px 0;display:none"></div>
+          <div id="cq-ex-sv" style="font-size:13px;color:var(--muted);font-style:italic;line-height:1.6;display:none"></div>
+          <div id="cq-ex-en" style="font-size:11px;color:#b0b0a8;line-height:1.5;display:none"></div>
+        </div>
+        <!-- Status + action -->
+        <div style="padding:0 20px 28px;display:flex;flex-direction:column;gap:10px">
+          <div id="cq-status-row" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--muted)"></div>
+          <button id="cq-study-btn" onclick="closeCardQuick();goReview()" style="background:var(--accent);color:white;border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;width:100%">▶  Study now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab on" onclick="nav('home')"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
+      <button class="tab" onclick="nav('library')"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
+      <button class="tab" onclick="nav('add')"><span class="tab-icon">➕</span><span class="tab-label">Add</span></button>
+      <button class="tab" onclick="nav('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Settings</span></button>
+    </div>
+  </div>
+
+  <!-- ══ ADD ══ -->
+  <div class="screen" id="s-add">
+    <div class="scroll">
+      <div class="page-pad">
+        <div class="section-title">Add Cards</div>
+        <div class="tab-switcher">
+          <button class="tsw-btn on" onclick="switchAddTab(this,'at-word')">Word</button>
+          <button class="tsw-btn" onclick="switchAddTab(this,'at-text')">Text</button>
+          <button class="tsw-btn" onclick="switchAddTab(this,'at-camera')">Camera</button>
+          <button class="tsw-btn" onclick="switchAddTab(this,'at-csv')">CSV</button>
+        </div>
+
+        <!-- Save To Deck -->
+        <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:4px">
+          <div class="fld-label">SAVE TO</div>
+          <div style="display:flex;gap:6px;margin-bottom:2px">
+            <button id="add-mode-current" onclick="setAddDeckMode('current')" style="flex:1;padding:8px;border-radius:10px;background:var(--accent);color:white;border:none;font-size:13px;font-weight:700;cursor:pointer">📚 Current deck</button>
+            <button id="add-mode-new" onclick="setAddDeckMode('new')" style="flex:1;padding:8px;border-radius:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);font-size:13px;font-weight:700;cursor:pointer">➕ New deck</button>
+          </div>
+          <div id="add-current-deck-row" style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+            <!-- populated dynamically by setAddDeckMode() -->
+          </div>
+          <div id="add-new-deck-row" style="display:none;flex-direction:column;gap:6px">
+            <input class="fld-input" id="new-deck-name" placeholder="Deck name (e.g. Travel Words)…" style="width:100%">
+            <div style="font-size:11px;color:var(--muted)">A new deck will be created when you add cards.</div>
           </div>
         </div>
 
-        <div id="tap-hint" class="tap-hint-row">Tap the card to flip</div>
+        <!-- Word -->
+        <div id="at-word" class="add-panel">
+          <div class="fld-label">Swedish word</div>
+          <div class="fld-row">
+            <input class="fld-input" id="word-in" placeholder="e.g. kärlek" onkeydown="if(event.key==='Enter')doTranslate()" oninput="syncManualSv()">
+            <button class="fld-btn" onclick="doTranslate()">Translate</button>
+          </div>
+          <div id="word-result" style="display:none" class="result-box">
+            <div class="result-sv" id="res-sv">kärlek</div>
+            <div class="result-en" id="res-en">love</div>
+            <span class="pill" id="res-cefr" style="background:var(--a1);margin-top:6px;display:inline-block">A1</span>
+            <div class="result-ex" id="res-ex">"Kärlek är viktig."</div>
+            <button class="btn-primary" style="margin-top:12px">Add to deck</button>
+          </div>
+          <div class="hint-text">Requires a Claude API key in Settings.</div>
 
-        <div id="rating-section" class="rating-section hidden">
-          <div class="rating-q">How well did you know it?</div>
+          <!-- Manual entry divider -->
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+            <button onclick="toggleManualEntry()" id="manual-toggle-btn" style="background:none;border:none;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;padding:4px 2px;white-space:nowrap">+ add manually</button>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>
+
+          <!-- Manual entry form -->
+          <div id="manual-entry" style="display:none;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
+            <div>
+              <div class="fld-label">Swedish</div>
+              <input class="fld-input" id="manual-sv" placeholder="e.g. kärlek" style="width:100%">
+            </div>
+            <div>
+              <div class="fld-label">English translation</div>
+              <input class="fld-input" id="manual-en" placeholder="e.g. love" style="width:100%">
+            </div>
+            <div>
+              <div class="fld-label">CEFR level <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <span class="mini-chip" onclick="selectManualCefr(this,'A1')">A1</span>
+                <span class="mini-chip" onclick="selectManualCefr(this,'A2')">A2</span>
+                <span class="mini-chip" onclick="selectManualCefr(this,'B1')">B1</span>
+                <span class="mini-chip" onclick="selectManualCefr(this,'B2')">B2</span>
+                <span class="mini-chip" onclick="selectManualCefr(this,'C1')">C1</span>
+                <span class="mini-chip" onclick="selectManualCefr(this,'C2')">C2</span>
+              </div>
+            </div>
+            <div>
+              <div class="fld-label">Example sentence <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+              <input class="fld-input" id="manual-ex-sv" placeholder="Swedish sentence…" style="width:100%;margin-bottom:6px">
+              <input class="fld-input" id="manual-ex-en" placeholder="English translation…" style="width:100%">
+            </div>
+            <button class="btn-primary" onclick="doAddManual()" style="margin-top:2px">Add to deck</button>
+          </div>
+        </div>
+
+        <!-- Text -->
+        <div id="at-text" class="add-panel" style="display:none">
+          <div class="fld-label">Paste Swedish text</div>
+          <textarea class="fld-input" rows="4" style="resize:none;width:100%" placeholder="Paste any Swedish text…"></textarea>
+          <div class="fld-label" style="margin-top:4px">Max CEFR level</div>
+          <div class="mini-chips">
+            <span class="mini-chip">A1</span><span class="mini-chip">A2</span>
+            <span class="mini-chip on">B1</span><span class="mini-chip">B2</span>
+            <span class="mini-chip">C1</span><span class="mini-chip">C2</span>
+          </div>
+          <button class="btn-primary" onclick="doExtractVocab()">Extract vocabulary</button>
+        </div>
+
+        <!-- Camera -->
+        <div id="at-camera" class="add-panel" style="display:none;gap:10px">
+          <div class="source-row" onclick="showCameraPremium(this)"><span class="source-ico">📷</span><div><div class="source-t">Take a photo</div><div class="source-s">Use your camera to capture text</div></div></div>
+          <div class="source-row" onclick="showCameraPremium(this)"><span class="source-ico">🖼️</span><div><div class="source-t">Choose from library</div><div class="source-s">Pick an existing photo or screenshot</div></div></div>
+          <div id="camera-premium-msg" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;color:#dc2626;text-align:center">⚠️ Upgrade to premium to use this feature</div>
+        </div>
+
+        <!-- CSV / Import -->
+        <div id="at-csv" class="add-panel" style="display:none;flex-direction:column;gap:12px">
+          <!-- Mode switcher -->
+          <div class="tab-switcher" style="margin-bottom:2px">
+            <button class="tsw-btn on" id="csv-paste-btn" onclick="setCsvMode('paste')">📋  Paste</button>
+            <button class="tsw-btn" id="csv-file-btn" onclick="setCsvMode('file')">📄  File</button>
+          </div>
+
+          <!-- Paste mode -->
+          <div id="csv-paste-panel" style="display:flex;flex-direction:column;gap:10px">
+            <div class="fld-label">Paste your data</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6">Copy from Quizlet, Google Sheets, or any spreadsheet and paste below.</div>
+            <textarea id="paste-area" class="fld-input" rows="5" style="resize:none;width:100%;font-family:monospace;font-size:13px;line-height:1.6" placeholder="hej&#9;hello&#10;kärlek&#9;love&#10;frihet&#9;freedom" oninput="parsePaste()"></textarea>
+
+            <!-- Delimiters -->
+            <div style="display:flex;gap:12px">
+              <div style="flex:1">
+                <div class="fld-label" style="margin-bottom:6px">Between front &amp; back</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <span class="mini-chip on" id="fb-tab" onclick="setFB('tab')">Tab</span>
+                  <span class="mini-chip" id="fb-comma" onclick="setFB('comma')">Comma</span>
+                  <span class="mini-chip" id="fb-custom" onclick="setFB('custom')">Custom</span>
+                </div>
+              </div>
+              <div style="width:1px;background:var(--border)"></div>
+              <div style="flex:1">
+                <div class="fld-label" style="margin-bottom:6px">Between cards</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <span class="mini-chip on" id="cd-newline" onclick="setCD('newline')">New line</span>
+                  <span class="mini-chip" id="cd-semi" onclick="setCD('semi')">Semicolon</span>
+                  <span class="mini-chip" id="cd-custom" onclick="setCD('custom')">Custom</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live preview -->
+            <div id="paste-preview" style="display:none;flex-direction:column;gap:6px"></div>
+            <button id="paste-import-btn" style="display:none" class="btn-primary" onclick="doImportCards()">Import 0 cards</button>
+          </div>
+
+          <!-- File mode -->
+          <div id="csv-file-panel" style="display:none;flex-direction:column;gap:10px">
+            <div class="drop-zone"><div class="drop-ico">📄</div><div class="drop-t">Choose a CSV file</div><div class="drop-s">Tap to browse</div></div>
+            <div style="background:var(--subtle);border-radius:10px;padding:14px">
+              <div class="fld-label" style="margin-bottom:6px">Expected format</div>
+              <code style="font-size:12px;color:var(--text);line-height:1.7;display:block">swedish,english,cefr<br>hej,hello,A1</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab" onclick="nav('home')"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
+      <button class="tab" onclick="nav('library')"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
+      <button class="tab on" onclick="nav('add')"><span class="tab-icon">➕</span><span class="tab-label">Add</span></button>
+      <button class="tab" onclick="nav('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Settings</span></button>
+    </div>
+  </div>
+
+  <!-- ══ REVIEW ══ -->
+  <div class="screen" id="s-review">
+    <div class="rv-topbar">
+      <button class="rv-close" onclick="nav('home')">✕</button>
+      <span class="rv-counter" id="rv-ctr">1 / 8</span>
+      <div style="width:32px"></div>
+    </div>
+    <div class="rv-prog-bg"><div class="rv-prog-fill" id="rv-prog"></div></div>
+    <div class="rv-body">
+      <div class="flip-area" onclick="flipCard()" id="flip-area">
+        <div class="card-face" id="card-face">
+          <span class="cefr-tag" id="rv-cefr-tag" style="background:var(--a1)">A1</span>
+          <div id="rv-word" class="card-word">hej</div>
+          <button class="speak-btn" id="rv-speak" onclick="event.stopPropagation();speakWord()" title="Hear pronunciation">🔊</button>
+          <span class="tap-hint-abs" id="rv-taphint">👆 Tap to reveal</span>
+        </div>
+      </div>
+      <div id="rv-bottom">
+        <div class="tap-hint-row" id="rv-hint-row">Tap the card to flip</div>
+        <div class="rating-wrap" id="rv-rating" style="display:none">
+          <div class="rating-q">HOW WELL DID YOU KNOW IT?</div>
           <div class="rating-row">
-            <button class="r-btn again" onclick="rateCard(0)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>Again
-            </button>
-            <button class="r-btn hard" onclick="rateCard(1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-              </svg>Hard
-            </button>
-            <button class="r-btn good" onclick="rateCard(3)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="9 12 11 14 15 10"/>
-              </svg>Good
-            </button>
-            <button class="r-btn easy" onclick="rateCard(5)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>Easy
-            </button>
+            <button class="r-btn" style="background:#fef2f2;color:#dc2626" onclick="rate(0)">Again</button>
+            <button class="r-btn" style="background:#fff7ed;color:#d97706" onclick="rate(1)">Hard</button>
+            <button class="r-btn" style="background:#f0fdf4;color:#16a34a" onclick="rate(3)">Good</button>
+            <button class="r-btn" style="background:#eff6ff;color:#2563eb" onclick="rate(5)">Easy</button>
           </div>
         </div>
       </div>
-
-      <!-- Done state -->
-      <div id="review-done" class="done-shell hidden">
-        <div class="done-icon">🎉</div>
-        <div class="done-title">All done!</div>
-        <div id="done-count" class="done-sub"></div>
-        <button class="cta-btn mt-16" style="width:auto;padding:13px 36px" onclick="showScreen('screen-home')">
-          Back to home
-        </button>
-      </div>
-
     </div>
   </div>
 
-  <!-- ══════════════════════════════
-       DECK
-  ══════════════════════════════ -->
-  <div id="screen-deck" class="screen">
-    <div class="topbar">
-      <div class="topbar-title" id="deck-title">Deck</div>
-    </div>
+  <!-- ══ SETTINGS ══ -->
+  <div class="screen" id="s-settings">
+    <div class="scroll">
+      <div class="page-pad">
+        <div class="section-title">Settings</div>
 
-    <div class="search-wrap">
-      <svg class="search-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input id="deck-search" class="search-input" type="text"
-             placeholder="Search words…"
-             oninput="deckFilter.search=this.value; renderDeck()">
-    </div>
-
-    <div class="chips-row">
-      <div class="chip active" data-cefr="all" onclick="deckFilter.cefr=null;renderDeck()">All</div>
-      <div class="chip" data-cefr="A1" onclick="deckFilter.cefr='A1';renderDeck()">A1</div>
-      <div class="chip" data-cefr="A2" onclick="deckFilter.cefr='A2';renderDeck()">A2</div>
-      <div class="chip" data-cefr="B1" onclick="deckFilter.cefr='B1';renderDeck()">B1</div>
-      <div class="chip" data-cefr="B2" onclick="deckFilter.cefr='B2';renderDeck()">B2</div>
-      <div class="chip" data-cefr="C1" onclick="deckFilter.cefr='C1';renderDeck()">C1</div>
-      <div class="chip" data-cefr="C2" onclick="deckFilter.cefr='C2';renderDeck()">C2</div>
-    </div>
-
-    <div id="deck-list" class="deck-list"></div>
-    <div id="deck-empty" class="empty-state hidden">
-      <div class="empty-state-icon">📭</div>
-      <div class="empty-state-title">No cards yet</div>
-      <div class="empty-state-sub">Add cards from the + tab by translating a word or pasting Swedish text.</div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════
-       ADD
-  ══════════════════════════════ -->
-  <div id="screen-add" class="screen">
-    <div class="topbar">
-      <div class="topbar-title">Add Cards</div>
-    </div>
-
-    <div class="add-content">
-
-      <!-- 4-tab toggle -->
-      <div class="tab-toggle" style="display:grid;grid-template-columns:repeat(4,1fr)">
-        <button class="tab-toggle-btn active" data-tab="single" onclick="switchAddTab('single')">Word</button>
-        <button class="tab-toggle-btn" data-tab="batch"  onclick="switchAddTab('batch')">Text</button>
-        <button class="tab-toggle-btn" data-tab="camera" onclick="switchAddTab('camera')">Camera</button>
-        <button class="tab-toggle-btn" data-tab="csv"    onclick="switchAddTab('csv')">CSV</button>
-      </div>
-
-      <!-- ── Single word ── -->
-      <div id="add-single-panel" class="card-panel">
-        <label class="field-label">Swedish word</label>
-        <div class="field-row" style="margin-bottom:0">
-          <input id="single-word" class="field-input" type="text" placeholder="e.g. kärlek"
-                 onkeydown="if(event.key==='Enter')doTranslate()">
-          <button class="cta-btn" style="width:auto;padding:11px 18px;font-size:13px;flex-shrink:0"
-                  onclick="doTranslate()">Translate</button>
-        </div>
-        <div id="single-loading" class="loader-wrap mt-10">
-          <div class="spinner"></div><span>Translating with Claude…</span>
-        </div>
-        <div id="translate-result" class="result-card mt-10">
-          <div style="display:flex;align-items:baseline;gap:10px">
-            <div id="tr-sv" class="result-sv"></div>
-            <div class="result-meta"><span id="tr-cefr" class="result-cefr"></span></div>
+        <div>
+          <div class="group-label">API Key</div>
+          <div class="s-row only">
+            <span class="s-icon">🔑</span>
+            <input class="s-key-input" type="password" value="sk-ant-placeholder">
+            <span style="font-size:18px;cursor:pointer">👁️</span>
+            <button class="s-save">Save</button>
           </div>
-          <div id="tr-en" class="result-en"></div>
-          <div id="tr-ex" class="result-ex"></div>
-          <button class="cta-btn mt-12" onclick="saveTranslatedCard()">Add to deck</button>
-        </div>
-        <p class="hint-text mt-10">Claude translates the word, assigns a CEFR level and generates an example sentence. Requires an API key in Settings.</p>
-      </div>
-
-      <!-- ── Batch text ── -->
-      <div id="add-batch-panel" class="card-panel hidden">
-        <label class="field-label">Paste Swedish text</label>
-        <textarea id="batch-text" class="field-textarea" placeholder="Paste any Swedish text — an article, a book passage, a social post…"></textarea>
-        <label class="field-label mt-10">Max CEFR level</label>
-        <select class="field-select" onchange="cfg.targetCEFR=this.value" id="batch-cefr-select">
-          <option value="A1">A1 — Beginner</option>
-          <option value="A2">A2 — Elementary</option>
-          <option value="B1" selected>B1 — Intermediate</option>
-          <option value="B2">B2 — Upper-Intermediate</option>
-          <option value="C1">C1 — Advanced</option>
-          <option value="C2">C2 — Mastery</option>
-        </select>
-        <button class="cta-btn mt-12" onclick="doBatchExtract()">Extract vocabulary</button>
-        <div id="batch-loading" class="loader-wrap mt-10">
-          <div class="spinner"></div><span>Extracting with Claude…</span>
-        </div>
-        <div id="word-selection" class="hidden">
-          <div class="section-head mt-12" id="word-sel-count">Select words to add</div>
-          <div id="word-list" class="word-list"></div>
-        </div>
-        <button id="batch-save-btn" class="cta-btn hidden" onclick="saveBatchCards()">
-          Add selected to deck
-        </button>
-      </div>
-
-      <!-- ── Camera / photo ── -->
-      <div id="add-camera-panel" class="card-panel hidden">
-        <!-- hidden file inputs -->
-        <input id="camera-capture" type="file" accept="image/*" capture="environment" class="hidden" onchange="onImageSelected(this)">
-        <input id="photo-library" type="file" accept="image/*" class="hidden" onchange="onImageSelected(this)">
-
-        <!-- source buttons -->
-        <div id="camera-source-btns" style="display:flex;flex-direction:column;gap:10px">
-          <button class="img-source-btn" onclick="document.getElementById('camera-capture').click()">
-            <span class="img-source-icon">📷</span>
-            <div>
-              <div class="img-source-title">Take a photo</div>
-              <div class="img-source-sub">Use your camera to capture text</div>
-            </div>
-          </button>
-          <button class="img-source-btn" onclick="document.getElementById('photo-library').click()">
-            <span class="img-source-icon">🖼️</span>
-            <div>
-              <div class="img-source-title">Choose from library</div>
-              <div class="img-source-sub">Pick an existing photo or screenshot</div>
-            </div>
-          </button>
+          <div class="hint-text" style="margin-top:6px">Stored on device only. Never shared.</div>
         </div>
 
-        <!-- preview + scan -->
-        <div id="camera-preview-wrap" class="hidden">
-          <img id="camera-preview-img" class="img-preview" alt="Preview">
-          <button class="cta-btn" style="margin-top:12px" onclick="doImageExtract()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            Scan with Claude
-          </button>
-          <button class="cta-btn ghost" style="margin-top:8px" onclick="resetCamera()">Choose different image</button>
-        </div>
-
-        <div id="camera-loading" class="loader-wrap mt-10">
-          <div class="spinner"></div><span>Scanning image with Claude…</span>
-        </div>
-
-        <label class="field-label mt-10" style="display:none" id="camera-cefr-label">Max CEFR level</label>
-        <select class="field-select hidden" id="camera-cefr-select" onchange="cfg.targetCEFR=this.value">
-          <option value="A1">A1 — Beginner</option>
-          <option value="A2">A2 — Elementary</option>
-          <option value="B1" selected>B1 — Intermediate</option>
-          <option value="B2">B2 — Upper-Intermediate</option>
-          <option value="C1">C1 — Advanced</option>
-          <option value="C2">C2 — Mastery</option>
-        </select>
-
-        <div id="camera-word-selection" class="hidden">
-          <div class="section-head mt-12" id="camera-sel-count">Select words to add</div>
-          <div id="camera-word-list" class="word-list"></div>
-        </div>
-        <button id="camera-save-btn" class="cta-btn hidden" onclick="saveCameraCards()">
-          Add selected to deck
-        </button>
-      </div>
-
-      <!-- ── CSV import ── -->
-      <div id="add-csv-panel" class="card-panel hidden">
-        <input id="csv-file-input" type="file" accept=".csv,.tsv,.txt" class="hidden" onchange="onCSVSelected(this)">
-
-        <div id="csv-drop-zone" class="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
-          <div class="csv-drop-icon">📄</div>
-          <div class="csv-drop-title">Choose a CSV file</div>
-          <div class="csv-drop-sub">Tap to browse</div>
-        </div>
-
-        <div class="csv-format-hint">
-          <div class="csv-format-title">Expected format</div>
-          <div class="csv-format-code">swedish,english<br>hej,hello<br>kärlek,love</div>
-          <div class="csv-format-note">Columns: <strong>swedish</strong>, <strong>english</strong>, and optionally <strong>cefr</strong>. First row can be a header.</div>
-        </div>
-
-        <div id="csv-col-picker" class="hidden"></div>
-
-        <div id="csv-preview" class="hidden">
-          <div class="section-head mt-12" id="csv-sel-count">Select rows to import</div>
-          <div class="csv-table-wrap">
-            <table id="csv-table" class="csv-table"></table>
+        <div>
+          <div class="group-label">Languages</div>
+          <div class="s-row top">
+            <span class="s-icon">🌍</span>
+            <span class="s-label">Study language</span>
+            <select class="s-select" id="lang-study" onchange="updateDirection()">
+              <option value="sv" selected>🇸🇪 Swedish</option>
+              <option value="de" disabled>🇩🇪 German (soon)</option>
+              <option value="fr" disabled>🇫🇷 French (soon)</option>
+              <option value="es" disabled>🇪🇸 Spanish (soon)</option>
+            </select>
           </div>
-          <div style="display:flex;gap:8px;margin-top:10px">
-            <button class="cta-btn ghost" style="flex:1;padding:10px" onclick="csvSelectAll(true)">Select all</button>
-            <button class="cta-btn ghost" style="flex:1;padding:10px" onclick="csvSelectAll(false)">Deselect all</button>
+          <div class="s-row mid">
+            <span class="s-icon">📖</span>
+            <span class="s-label">Study from</span>
+            <select class="s-select" id="lang-from" onchange="updateDirection()">
+              <option value="en" selected>🇬🇧 English</option>
+              <option value="de" disabled>🇩🇪 German (soon)</option>
+              <option value="fr" disabled>🇫🇷 French (soon)</option>
+            </select>
+          </div>
+          <div class="s-row bot">
+            <span class="s-icon">🔄</span>
+            <span class="s-label">Study direction</span>
+            <button class="s-direction-tag" id="study-direction-tag" onclick="flipDirection()">
+              <span id="dir-text">SV → EN</span>
+              <span style="font-size:11px;opacity:0.6">⇅</span>
+            </button>
           </div>
         </div>
 
-        <button id="csv-save-btn" class="cta-btn hidden" onclick="saveCSVCards()">
-          Import selected
-        </button>
-      </div>
+        <div>
+          <div class="group-label">Statistics</div>
+          <div class="s-row top"><span class="s-icon">📚</span><span class="s-label">Total cards</span><span class="s-val" id="cfg-stat-total">—</span></div>
+          <div class="s-row mid"><span class="s-icon">🕐</span><span class="s-label">Due today</span><span class="s-val" id="cfg-stat-due">—</span></div>
+          <div class="s-row mid"><span class="s-icon">⭐</span><span class="s-label">Mastered</span><span class="s-val" id="cfg-stat-mastered">—</span></div>
+          <div class="s-row bot"><span class="s-icon">🔥</span><span class="s-label">Review streak</span><span class="s-val">3 days</span></div>
+        </div>
 
+        <button class="btn-danger">Delete all cards</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab" onclick="nav('home')"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
+      <button class="tab" onclick="nav('library')"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
+      <button class="tab" onclick="nav('add')"><span class="tab-icon">➕</span><span class="tab-label">Add</span></button>
+      <button class="tab on" onclick="nav('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Settings</span></button>
     </div>
   </div>
 
-  <!-- ══════════════════════════════
-       SETTINGS
-  ══════════════════════════════ -->
-  <div id="screen-settings" class="screen">
-    <div class="topbar">
-      <div class="topbar-title">Settings</div>
+  <!-- ══ LIBRARY ══ -->
+  <div class="screen" id="s-library">
+    <div class="lib-header">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title">Library</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:600" id="lib-count">24 decks</div>
+      </div>
+      <div class="lib-search-wrap">
+        <span style="font-size:16px">🔍</span>
+        <input class="lib-search-input" id="lib-search" placeholder="Search decks…" oninput="libFilter()" />
+        <button id="lib-search-clear" style="display:none;background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)" onclick="libClearSearch()">✕</button>
+      </div>
+      <div class="lib-cats" id="lib-cats">
+        <button class="lib-cat on" onclick="libSetCat(this,'all')">All</button>
+        <button class="lib-cat" onclick="libSetCat(this,'beginner')">🌱 Beginner</button>
+        <button class="lib-cat" onclick="libSetCat(this,'verbs')">⚡ Verbs</button>
+        <button class="lib-cat" onclick="libSetCat(this,'daily')">🏠 Daily Life</button>
+      </div>
     </div>
-
-    <div class="settings-content">
-
-      <div class="settings-group">
-        <div class="settings-group-label">API Key</div>
-        <div class="settings-row" style="border-radius:var(--radius)">
-          <span class="settings-row-icon">🔑</span>
-          <input id="api-key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
-          <button class="icon-btn" onclick="toggleKeyVisible()">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
-          <button class="save-btn" onclick="saveApiKey()">Save</button>
+    <div class="scroll" style="padding:0">
+      <div class="lib-grid" id="lib-grid"></div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab" onclick="nav('home')"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
+      <button class="tab on" onclick="nav('library')"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
+      <button class="tab" onclick="nav('add')"><span class="tab-icon">➕</span><span class="tab-label">Add</span></button>
+      <button class="tab" onclick="nav('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Settings</span></button>
+    </div>
+    <!-- Import sheet -->
+    <div class="lib-sheet-overlay" id="lib-sheet-overlay" onclick="if(event.target===this)closeLibSheet()">
+      <div class="lib-sheet">
+        <div class="lib-sheet-scroll">
+          <div class="lib-sheet-handle"></div>
+          <div class="lib-sheet-emoji" id="lsh-emoji">📚</div>
+          <div class="lib-sheet-title" id="lsh-title"></div>
+          <div class="lib-sheet-sub" id="lsh-sub"></div>
+          <div class="lib-sheet-stats">
+            <div class="lib-sheet-stat"><div class="lib-sheet-stat-val" id="lsh-cards">—</div><div class="lib-sheet-stat-lbl">Cards</div></div>
+            <div class="lib-sheet-stat"><div class="lib-sheet-stat-val" id="lsh-rating">—</div><div class="lib-sheet-stat-lbl">Rating</div></div>
+            <div class="lib-sheet-stat"><div class="lib-sheet-stat-val" id="lsh-studiers">—</div><div class="lib-sheet-stat-lbl">Studiers</div></div>
+          </div>
+          <div style="margin-top:16px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Sample words</div>
+          <div class="lib-sheet-words" id="lsh-words"></div>
+          <div style="height:16px"></div>
         </div>
-        <p class="hint-text" style="margin-top:6px">Stored in your browser only. Never shared.</p>
-      </div>
-
-      <div class="settings-group">
-        <div class="settings-group-label">Preferences</div>
-        <div class="settings-row">
-          <span class="settings-row-icon">🎯</span>
-          <span class="settings-row-label">Target level</span>
-          <select id="cefr-select" onchange="saveCEFR()">
-            <option value="A1">A1</option><option value="A2">A2</option>
-            <option value="B1">B1</option><option value="B2">B2</option>
-            <option value="C1">C1</option><option value="C2">C2</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <span class="settings-row-icon">📅</span>
-          <span class="settings-row-label">Daily goal</span>
-          <select id="goal-select" onchange="saveGoal()">
-            <option value="5">5 cards</option><option value="10">10 cards</option>
-            <option value="20">20 cards</option><option value="30">30 cards</option>
-            <option value="50">50 cards</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <span class="settings-row-icon">🔄</span>
-          <span class="settings-row-label">Study direction</span>
-          <select id="direction-select" onchange="saveStudyDirection()">
-            <option value="sv-en">Swedish → English</option>
-            <option value="en-sv">English → Swedish</option>
-          </select>
+        <div class="lib-sheet-footer">
+          <div class="lib-imported-badge" id="lsh-imported-badge">✓ Added to your decks!</div>
+          <button class="btn-primary" id="lsh-import-btn" onclick="libImportDeck()">Add to my decks</button>
         </div>
       </div>
-
-      <div class="settings-group">
-        <div class="settings-group-label">Statistics</div>
-        <div class="settings-row">
-          <span class="settings-row-icon">📚</span>
-          <span class="settings-row-label">Total cards</span>
-          <span id="settings-total" class="settings-row-val">0</span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-row-icon">🕐</span>
-          <span class="settings-row-label">Due today</span>
-          <span id="settings-due" class="settings-row-val">0</span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-row-icon">⭐</span>
-          <span class="settings-row-label">Mastered</span>
-          <span id="settings-mastered" class="settings-row-val">0</span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-row-icon">🔥</span>
-          <span class="settings-row-label">Review streak</span>
-          <span id="settings-streak" class="settings-row-val">0 days</span>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <div class="settings-group-label">Danger zone</div>
-        <button class="danger-btn" onclick="resetAllCards()">Delete all cards</button>
-      </div>
-
     </div>
   </div>
 
-  <!-- ══════════════════════════════
-       TAB BAR
-  ══════════════════════════════ -->
-  <nav class="tabbar">
-    <button class="tab-btn active" data-screen="screen-home" onclick="showScreen('screen-home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span>Home</span>
-    </button>
-    <button class="tab-btn" data-screen="screen-deck" onclick="showScreen('screen-deck')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
-      </svg>
-      <span>Deck</span>
-    </button>
-    <button class="tab-btn" data-screen="screen-add" onclick="showScreen('screen-add')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-      </svg>
-      <span>Add</span>
-    </button>
-    <button class="tab-btn" data-screen="screen-settings" onclick="showScreen('screen-settings')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-      <span>Settings</span>
-    </button>
-  </nav>
-
+  <!-- ══ DECK PICKER MODAL ══ -->
+  <div class="modal-overlay" id="deck-picker" onclick="if(event.target===this)closeDeckPicker()">
+    <div class="modal-sheet">
+      <div class="modal-drag"></div>
+      <div class="modal-head">
+        <div class="modal-title">Starter Decks</div>
+        <button class="modal-close-btn" onclick="closeDeckPicker()">✕</button>
+      </div>
+      <div class="modal-sub">Pick a level or load them all at once.</div>
+      <div class="modal-list">
+        <button class="load-all" onclick="closeDeckPicker()">⚡  Load all levels (A1 → C2)</button>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--a1)"><span>A1</span></div><div class="di-info"><div class="di-title">A1 · Everyday Basics</div><div class="di-desc">Greetings, numbers, family &amp; common objects</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--a2)"><span>A2</span></div><div class="di-info"><div class="di-title">A2 · Daily Life</div><div class="di-desc">Shopping, transport, time &amp; weather</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--b1)"><span>B1</span></div><div class="di-info"><div class="di-title">B1 · Intermediate</div><div class="di-desc">Opinions, plans, society &amp; feelings</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--b2)"><span>B2</span></div><div class="di-info"><div class="di-title">B2 · Upper Intermediate</div><div class="di-desc">Abstract ideas, nuance &amp; complex topics</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--c1)"><span>C1</span></div><div class="di-info"><div class="di-title">C1 · Advanced</div><div class="di-desc">Academic, professional &amp; nuanced vocabulary</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+        <div class="deck-item" onclick="closeDeckPicker()"><div class="di-badge" style="background:var(--c2)"><span>C2</span></div><div class="di-info"><div class="di-title">C2 · Mastery</div><div class="di-desc">Literary, idiomatic &amp; near-native expressions</div><div class="di-meta">12 words</div></div><span class="di-arrow">›</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<script>
+// ── DATA ──
+const CARDS = [];
+// dueCards is rebuilt dynamically when review starts (see nav 'review')
 
-<script src="app.js"></script>
+// ── DECK DATA (must be before updateHomeStats) ──
+const DECKS_DATA = [];
+let deckViewMode = 'deck';
+
+// ── HOME + SETTINGS STATS ──
+function updateHomeStats() {
+  const total = CARDS.length;
+  const due = CARDS.filter(c => c.due).length;
+  const mastered = CARDS.filter(c => !c.due && c.days > 5).length;
+  // Settings stats (same data)
+  if (document.getElementById('cfg-stat-total')) {
+    document.getElementById('cfg-stat-total').textContent = total;
+    document.getElementById('cfg-stat-due').textContent = due;
+    document.getElementById('cfg-stat-mastered').textContent = mastered;
+  }
+
+  const emptyEl    = document.getElementById('home-empty');
+  const hasDecksEl = document.getElementById('home-has-decks');
+
+  if (total === 0) {
+    if (emptyEl)    emptyEl.style.display    = 'flex';
+    if (hasDecksEl) hasDecksEl.style.display = 'none';
+  } else {
+    if (emptyEl)    emptyEl.style.display    = 'none';
+    if (hasDecksEl) hasDecksEl.style.display = 'flex';
+    document.getElementById('home-due-num').textContent      = due;
+    document.getElementById('home-stat-total').textContent   = total;
+    document.getElementById('home-stat-mastered').textContent= mastered;
+    document.getElementById('home-stat-due').textContent     = due;
+    document.getElementById('home-see-all-link').textContent = `See all ${total} cards →`;
+    const reviewBtn = document.getElementById('home-review-btn');
+    if (reviewBtn) {
+      reviewBtn.className = due > 0 ? 'btn-primary' : 'btn-ghost btn-done';
+      reviewBtn.textContent = due > 0 ? `▶  Start Review (${due})` : '▶  Nothing due right now';
+    }
+    // Re-render deck list
+    if (typeof renderDeckView === 'function') renderDeckView();
+  }
+}
+updateHomeStats();
+
+// ── NAVIGATION ──
+function nav(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s-' + screen).classList.add('active');
+  if (screen === 'home') { renderDeckView(); updateHomeStats(); }
+  if (screen === 'review') { rvQueue = CARDS.filter(c => c.due); rvIdx = 0; rvFlipped = false; rvReviewedCount = 0; loadRVCard(); }
+  if (screen === 'add') { setAddDeckMode(DECKS_DATA.length > 0 ? 'current' : 'new'); }
+  if (screen === 'library') { libRender(); }
+  if (screen === 'ob-demo') {
+    document.getElementById('ob-demo-s0').style.display = 'block';
+    document.getElementById('ob-demo-s1').style.display = 'none';
+    document.getElementById('ob-demo-s2').style.display = 'none';
+    document.getElementById('ob-footer-s1').style.display = 'none';
+    document.getElementById('ob-start-btn').style.display = 'none';
+    document.getElementById('ob-beam').classList.remove('running');
+    ['ob-sv1','ob-sv2','ob-sv3'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.background = ''; el.style.fontWeight = ''; el.style.padding = '';
+    });
+    obWordSelected = [true, true, true];
+    obCardFlipped = false;
+    document.getElementById('ob-demo-scroll').scrollTo({top:0,behavior:'instant'});
+  }
+}
+function goReview() { nav('review'); }
+
+// ── LIBRARY DATA ──
+// Each deck has `words` (5 shown in preview) and `fullCards` (100 real cards imported)
+const LIB_DECKS = [
+  {
+    id:'lib-a1-essentials', emoji:'🇸🇪', name:'A1 Essentials – 100 Must-Know Words',
+    cats:['all','beginner'], cards:100, rating:4.9, studiers:312,
+    sub:'The 100 most essential A1 Swedish words: greetings, numbers, colors, family, time, and everyday adjectives.',
+    words:[{sv:'hej',en:'hello'},{sv:'tack',en:'thank you'},{sv:'bra',en:'good'},{sv:'idag',en:'today'},{sv:'familj',en:'family'}],
+    fullCards:[
+      {sv:'hej',       en:'hello',              cefr:'A1',exSV:'Hej! Hur mår du?',              exEN:'Hello! How are you?',               due:true},
+      {sv:'tack',      en:'thank you',          cefr:'A1',exSV:'Tack så mycket!',               exEN:'Thank you so much!',                due:true},
+      {sv:'varsågod',  en:"you're welcome",     cefr:'A1',exSV:'Varsågod, ingen fara.',         exEN:"You're welcome, no problem.",       due:false,days:2},
+      {sv:'förlåt',    en:'sorry / excuse me',  cefr:'A1',exSV:'Förlåt, kan du hjälpa mig?',   exEN:'Excuse me, can you help me?',       due:true},
+      {sv:'ja',        en:'yes',                cefr:'A1',exSV:'Ja, det stämmer.',              exEN:'Yes, that is correct.',             due:false,days:6},
+      {sv:'nej',       en:'no',                 cefr:'A1',exSV:'Nej, tack.',                    exEN:'No, thank you.',                    due:false,days:7},
+      {sv:'och',       en:'and',                cefr:'A1',exSV:'Kaffe och te.',                 exEN:'Coffee and tea.',                   due:false,days:5},
+      {sv:'men',       en:'but',                cefr:'A1',exSV:'Bra men dyrt.',                 exEN:'Good but expensive.',               due:true},
+      {sv:'eller',     en:'or',                 cefr:'A1',exSV:'Te eller kaffe?',               exEN:'Tea or coffee?',                    due:true},
+      {sv:'jag',       en:'I',                  cefr:'A1',exSV:'Jag heter Anna.',               exEN:'My name is Anna.',                  due:false,days:8},
+      {sv:'du',        en:'you',                cefr:'A1',exSV:'Vad heter du?',                 exEN:'What is your name?',                due:false,days:6},
+      {sv:'han',       en:'he',                 cefr:'A1',exSV:'Han är lärare.',                exEN:'He is a teacher.',                  due:true},
+      {sv:'hon',       en:'she',                cefr:'A1',exSV:'Hon bor i Stockholm.',          exEN:'She lives in Stockholm.',           due:true},
+      {sv:'vi',        en:'we',                 cefr:'A1',exSV:'Vi pratar svenska.',            exEN:'We speak Swedish.',                 due:false,days:4},
+      {sv:'de',        en:'they',               cefr:'A1',exSV:'De kommer imorgon.',            exEN:'They are coming tomorrow.',         due:true},
+      {sv:'det',       en:'it / that',          cefr:'A1',exSV:'Det är kallt idag.',            exEN:'It is cold today.',                 due:false,days:9},
+      {sv:'stor',      en:'big / large',        cefr:'A1',exSV:'Det är ett stort hus.',         exEN:'It is a big house.',                due:true},
+      {sv:'liten',     en:'small / little',     cefr:'A1',exSV:'En liten hund.',                exEN:'A small dog.',                      due:true},
+      {sv:'bra',       en:'good / well',        cefr:'A1',exSV:'Det är bra mat.',               exEN:'It is good food.',                  due:false,days:5},
+      {sv:'dålig',     en:'bad / poor',         cefr:'A1',exSV:'Vädret är dåligt idag.',        exEN:'The weather is bad today.',         due:true},
+      {sv:'ny',        en:'new',                cefr:'A1',exSV:'Jag har en ny telefon.',        exEN:'I have a new phone.',               due:true},
+      {sv:'gammal',    en:'old',                cefr:'A1',exSV:'Det är en gammal bil.',         exEN:'It is an old car.',                 due:false,days:3},
+      {sv:'vacker',    en:'beautiful',          cefr:'A1',exSV:'Vilken vacker dag!',            exEN:'What a beautiful day!',             due:true},
+      {sv:'snabb',     en:'fast / quick',       cefr:'A1',exSV:'Han springer snabbt.',          exEN:'He runs fast.',                     due:true},
+      {sv:'långsam',   en:'slow',               cefr:'A1',exSV:'Tåget är långsamt idag.',       exEN:'The train is slow today.',          due:false,days:2},
+      {sv:'ett',       en:'one (1)',             cefr:'A1',exSV:'Jag vill ha ett äpple.',        exEN:'I would like one apple.',           due:false,days:7},
+      {sv:'två',       en:'two (2)',             cefr:'A1',exSV:'Jag har två syskon.',           exEN:'I have two siblings.',              due:false,days:6},
+      {sv:'tre',       en:'three (3)',           cefr:'A1',exSV:'Tre koppar kaffe.',             exEN:'Three cups of coffee.',             due:true},
+      {sv:'fyra',      en:'four (4)',            cefr:'A1',exSV:'Fyra årstider.',                exEN:'Four seasons.',                     due:true},
+      {sv:'fem',       en:'five (5)',            cefr:'A1',exSV:'Fem dagar i veckan.',           exEN:'Five days a week.',                 due:false,days:4},
+      {sv:'sex',       en:'six (6)',             cefr:'A1',exSV:'Klockan är sex.',               exEN:"It is six o'clock.",                due:true},
+      {sv:'sju',       en:'seven (7)',           cefr:'A1',exSV:'Sju dagar i veckan.',           exEN:'Seven days a week.',                due:true},
+      {sv:'åtta',      en:'eight (8)',           cefr:'A1',exSV:'Åtta timmar sömn.',             exEN:'Eight hours of sleep.',             due:false,days:3},
+      {sv:'nio',       en:'nine (9)',            cefr:'A1',exSV:'Nio månader.',                  exEN:'Nine months.',                      due:true},
+      {sv:'tio',       en:'ten (10)',            cefr:'A1',exSV:'Tio minuter kvar.',             exEN:'Ten minutes left.',                 due:true},
+      {sv:'röd',       en:'red',                cefr:'A1',exSV:'En röd blomma.',                exEN:'A red flower.',                     due:false,days:5},
+      {sv:'blå',       en:'blue',               cefr:'A1',exSV:'Den blå himlen.',               exEN:'The blue sky.',                     due:true},
+      {sv:'grön',      en:'green',              cefr:'A1',exSV:'Gröna träd i parken.',          exEN:'Green trees in the park.',          due:true},
+      {sv:'gul',       en:'yellow',             cefr:'A1',exSV:'En gul sol.',                   exEN:'A yellow sun.',                     due:false,days:2},
+      {sv:'vit',       en:'white',              cefr:'A1',exSV:'Vitt snö täcker marken.',       exEN:'White snow covers the ground.',     due:true},
+      {sv:'svart',     en:'black',              cefr:'A1',exSV:'En svart katt.',                exEN:'A black cat.',                      due:false,days:6},
+      {sv:'mamma',     en:'mom / mother',       cefr:'A1',exSV:'Min mamma lagar mat.',          exEN:'My mom is cooking.',                due:true},
+      {sv:'pappa',     en:'dad / father',       cefr:'A1',exSV:'Pappa läser tidningen.',        exEN:'Dad is reading the newspaper.',     due:true},
+      {sv:'bror',      en:'brother',            cefr:'A1',exSV:'Min bror bor i Göteborg.',      exEN:'My brother lives in Gothenburg.',   due:false,days:3},
+      {sv:'syster',    en:'sister',             cefr:'A1',exSV:'Min syster är lärare.',         exEN:'My sister is a teacher.',           due:true},
+      {sv:'barn',      en:'child / children',   cefr:'A1',exSV:'Barnen leker i parken.',        exEN:'The children are playing in the park.',due:true},
+      {sv:'familj',    en:'family',             cefr:'A1',exSV:'Vi är en stor familj.',         exEN:'We are a big family.',              due:false,days:4},
+      {sv:'hus',       en:'house',              cefr:'A1',exSV:'Huset är vitt.',                exEN:'The house is white.',               due:true},
+      {sv:'lägenhet',  en:'apartment',          cefr:'A1',exSV:'Jag bor i en lägenhet.',        exEN:'I live in an apartment.',           due:true},
+      {sv:'skola',     en:'school',             cefr:'A1',exSV:'Barnen går i skolan.',          exEN:'The children go to school.',        due:false,days:5},
+      {sv:'arbete',    en:'work / job',         cefr:'A1',exSV:'Jag har ett nytt arbete.',      exEN:'I have a new job.',                 due:true},
+      {sv:'mat',       en:'food',               cefr:'A1',exSV:'Maten luktar gott.',            exEN:'The food smells good.',             due:true},
+      {sv:'vatten',    en:'water',              cefr:'A1',exSV:'Kan jag få vatten, tack?',      exEN:'Can I have some water, please?',    due:false,days:7},
+      {sv:'mjölk',     en:'milk',               cefr:'A1',exSV:'Jag dricker mjölk varje dag.',  exEN:'I drink milk every day.',           due:true},
+      {sv:'bröd',      en:'bread',              cefr:'A1',exSV:'Brödet är nybakat.',            exEN:'The bread is freshly baked.',       due:true},
+      {sv:'äpple',     en:'apple',              cefr:'A1',exSV:'Jag äter ett äpple.',           exEN:'I am eating an apple.',             due:false,days:2},
+      {sv:'dag',       en:'day',                cefr:'A1',exSV:'Vad gör du idag?',              exEN:'What are you doing today?',         due:true},
+      {sv:'natt',      en:'night',              cefr:'A1',exSV:'God natt!',                     exEN:'Good night!',                       due:false,days:6},
+      {sv:'morgon',    en:'morning',            cefr:'A1',exSV:'God morgon!',                   exEN:'Good morning!',                     due:true},
+      {sv:'kväll',     en:'evening',            cefr:'A1',exSV:'God kväll!',                    exEN:'Good evening!',                     due:true},
+      {sv:'vecka',     en:'week',               cefr:'A1',exSV:'Den här veckan är hektisk.',    exEN:'This week is hectic.',              due:false,days:3},
+      {sv:'månad',     en:'month',              cefr:'A1',exSV:'Vi träffas en gång i månaden.', exEN:'We meet once a month.',             due:true},
+      {sv:'år',        en:'year',               cefr:'A1',exSV:'Gott nytt år!',                 exEN:'Happy New Year!',                   due:true},
+      {sv:'tid',       en:'time',               cefr:'A1',exSV:'Har du tid nu?',                exEN:'Do you have time now?',             due:false,days:4},
+      {sv:'klocka',    en:'clock / watch',      cefr:'A1',exSV:'Klockan är tre.',               exEN:"It is three o'clock.",              due:true},
+      {sv:'idag',      en:'today',              cefr:'A1',exSV:'Vad händer idag?',              exEN:'What is happening today?',          due:false,days:5},
+      {sv:'imorgon',   en:'tomorrow',           cefr:'A1',exSV:'Vi ses imorgon.',               exEN:'See you tomorrow.',                 due:true},
+      {sv:'igår',      en:'yesterday',          cefr:'A1',exSV:'Vad gjorde du igår?',           exEN:'What did you do yesterday?',        due:true},
+      {sv:'nu',        en:'now',                cefr:'A1',exSV:'Kom nu!',                       exEN:'Come now!',                         due:false,days:8},
+      {sv:'senare',    en:'later',              cefr:'A1',exSV:'Vi pratar senare.',             exEN:'We will talk later.',               due:true},
+      {sv:'här',       en:'here',               cefr:'A1',exSV:'Stå här.',                      exEN:'Stand here.',                       due:true},
+      {sv:'där',       en:'there',              cefr:'A1',exSV:'Titta där borta!',              exEN:'Look over there!',                  due:false,days:2},
+      {sv:'vad',       en:'what',               cefr:'A1',exSV:'Vad vill du ha?',               exEN:'What do you want?',                 due:true},
+      {sv:'vem',       en:'who',                cefr:'A1',exSV:'Vem är det?',                   exEN:'Who is that?',                      due:true},
+      {sv:'var',       en:'where',              cefr:'A1',exSV:'Var bor du?',                   exEN:'Where do you live?',                due:false,days:3},
+      {sv:'när',       en:'when',               cefr:'A1',exSV:'När kommer du?',                exEN:'When are you coming?',              due:true},
+      {sv:'hur',       en:'how',                cefr:'A1',exSV:'Hur mår du?',                   exEN:'How are you?',                      due:false,days:6},
+      {sv:'varför',    en:'why',                cefr:'A1',exSV:'Varför är du ledsen?',          exEN:'Why are you sad?',                  due:true},
+      {sv:'mycket',    en:'very / much',        cefr:'A1',exSV:'Tack så mycket.',               exEN:'Thank you very much.',              due:true},
+      {sv:'lite',      en:'a little',           cefr:'A1',exSV:'Lite socker, tack.',            exEN:'A little sugar, please.',           due:false,days:4},
+      {sv:'alla',      en:'everyone / all',     cefr:'A1',exSV:'Alla är välkomna.',             exEN:'Everyone is welcome.',              due:true},
+      {sv:'ingen',     en:'no one / none',      cefr:'A1',exSV:'Ingen är hemma.',               exEN:'No one is home.',                   due:true},
+      {sv:'samma',     en:'same',               cefr:'A1',exSV:'Vi bor på samma gata.',         exEN:'We live on the same street.',       due:false,days:2},
+      {sv:'annan',     en:'other / another',    cefr:'A1',exSV:'Kan vi prova ett annat?',       exEN:'Can we try another one?',           due:true},
+      {sv:'rätt',      en:'right / correct',    cefr:'A1',exSV:'Du har rätt.',                  exEN:'You are right.',                    due:true},
+      {sv:'fel',       en:'wrong / mistake',    cefr:'A1',exSV:'Det är fel svar.',              exEN:'That is the wrong answer.',         due:false,days:5},
+      {sv:'lätt',      en:'easy / light',       cefr:'A1',exSV:'Det är lätt att lära sig.',     exEN:'It is easy to learn.',              due:true},
+      {sv:'svårt',     en:'difficult',          cefr:'A1',exSV:'Svenska är inte svårt.',        exEN:'Swedish is not difficult.',         due:false,days:3},
+      {sv:'roligt',    en:'fun / funny',        cefr:'A1',exSV:'Det är roligt att dansa.',      exEN:'It is fun to dance.',               due:true},
+      {sv:'tråkigt',   en:'boring',             cefr:'A1',exSV:'Det var tråkigt.',              exEN:'That was boring.',                  due:true},
+      {sv:'glad',      en:'happy',              cefr:'A1',exSV:'Jag är glad idag.',             exEN:'I am happy today.',                 due:false,days:4},
+      {sv:'ledsen',    en:'sad',                cefr:'A1',exSV:'Varför är du ledsen?',          exEN:'Why are you sad?',                  due:true},
+      {sv:'trött',     en:'tired',              cefr:'A1',exSV:'Jag är trött.',                 exEN:'I am tired.',                       due:true},
+      {sv:'hungrig',   en:'hungry',             cefr:'A1',exSV:'Jag är jättehungrig.',          exEN:'I am very hungry.',                 due:false,days:2},
+      {sv:'törstig',   en:'thirsty',            cefr:'A1',exSV:'Är du törstig?',                exEN:'Are you thirsty?',                  due:true},
+      {sv:'kall',      en:'cold',               cefr:'A1',exSV:'Det är kallt ute.',             exEN:'It is cold outside.',               due:false,days:6},
+      {sv:'varm',      en:'warm / hot',         cefr:'A1',exSV:'Det är varmt i sommaren.',      exEN:'It is warm in summer.',             due:true},
+      {sv:'välkommen', en:'welcome',            cefr:'A1',exSV:'Välkommen till Sverige!',       exEN:'Welcome to Sweden!',                due:true},
+      {sv:'snäll',     en:'kind / nice',        cefr:'A1',exSV:'Du är väldigt snäll.',          exEN:'You are very kind.',                due:false,days:3},
+      {sv:'söt',       en:'sweet / cute',       cefr:'A1',exSV:'Vilken söt hund!',              exEN:'What a cute dog!',                  due:true},
+    ]
+  },
+  {
+    id:'lib-verbs-101', emoji:'⚡', name:'Swedish Verbs 101',
+    cats:['all','beginner','verbs'], cards:100, rating:4.8, studiers:247,
+    sub:'100 essential Swedish verbs you need to hold any conversation. From basic actions to everyday expressions.',
+    words:[{sv:'vara',en:'to be'},{sv:'göra',en:'to do'},{sv:'vilja',en:'to want'},{sv:'förstå',en:'to understand'},{sv:'lära sig',en:'to learn'}],
+    fullCards:[
+      {sv:'vara',      en:'to be',              cefr:'A1',exSV:'Jag vill vara bra.',            exEN:'I want to be good.',                due:true},
+      {sv:'ha',        en:'to have',            cefr:'A1',exSV:'Har du en penna?',              exEN:'Do you have a pen?',                due:false,days:8},
+      {sv:'göra',      en:'to do / make',       cefr:'A1',exSV:'Vad ska vi göra idag?',         exEN:'What shall we do today?',           due:true},
+      {sv:'säga',      en:'to say',             cefr:'A1',exSV:'Vad säger du?',                 exEN:'What do you say?',                  due:true},
+      {sv:'gå',        en:'to go / walk',       cefr:'A1',exSV:'Vill du gå med mig?',           exEN:'Do you want to go with me?',        due:false,days:5},
+      {sv:'komma',     en:'to come',            cefr:'A1',exSV:'Kan du komma hit?',             exEN:'Can you come here?',                due:true},
+      {sv:'se',        en:'to see',             cefr:'A1',exSV:'Jag kan se havet.',             exEN:'I can see the sea.',                due:true},
+      {sv:'ta',        en:'to take',            cefr:'A1',exSV:'Ta en stol och sätt dig.',      exEN:'Take a chair and sit down.',        due:false,days:3},
+      {sv:'ge',        en:'to give',            cefr:'A1',exSV:'Kan du ge mig boken?',          exEN:'Can you give me the book?',         due:true},
+      {sv:'veta',      en:'to know (a fact)',   cefr:'A1',exSV:'Vet du var han är?',            exEN:'Do you know where he is?',          due:true},
+      {sv:'tänka',     en:'to think',           cefr:'A1',exSV:'Jag tänker på dig.',            exEN:'I am thinking of you.',             due:false,days:4},
+      {sv:'tycka',     en:'to think / feel',    cefr:'A1',exSV:'Vad tycker du om filmen?',      exEN:'What do you think of the movie?',   due:true},
+      {sv:'känna',     en:'to know / feel',     cefr:'A1',exSV:'Jag känner mig bra.',           exEN:'I feel good.',                      due:false,days:6},
+      {sv:'titta',     en:'to look / watch',    cefr:'A1',exSV:'Titta på mig!',                 exEN:'Look at me!',                       due:true},
+      {sv:'lyssna',    en:'to listen',          cefr:'A1',exSV:'Lyssna noga!',                  exEN:'Listen carefully!',                 due:true},
+      {sv:'prata',     en:'to talk / speak',    cefr:'A1',exSV:'Vi pratar svenska.',            exEN:'We speak Swedish.',                 due:false,days:2},
+      {sv:'fråga',     en:'to ask',             cefr:'A1',exSV:'Kan jag fråga dig något?',      exEN:'Can I ask you something?',          due:true},
+      {sv:'svara',     en:'to answer',          cefr:'A1',exSV:'Svara på frågan.',              exEN:'Answer the question.',              due:true},
+      {sv:'hjälpa',    en:'to help',            cefr:'A1',exSV:'Kan du hjälpa mig?',            exEN:'Can you help me?',                  due:false,days:5},
+      {sv:'behöva',    en:'to need',            cefr:'A1',exSV:'Jag behöver mer tid.',          exEN:'I need more time.',                 due:true},
+      {sv:'vilja',     en:'to want',            cefr:'A1',exSV:'Jag vill lära mig svenska.',    exEN:'I want to learn Swedish.',          due:true},
+      {sv:'kunna',     en:'to be able to',      cefr:'A1',exSV:'Kan du simma?',                 exEN:'Can you swim?',                     due:false,days:7},
+      {sv:'köpa',      en:'to buy',             cefr:'A1',exSV:'Jag vill köpa det.',            exEN:'I want to buy it.',                 due:true},
+      {sv:'sälja',     en:'to sell',            cefr:'A2',exSV:'De säljer mat här.',            exEN:'They sell food here.',              due:true},
+      {sv:'betala',    en:'to pay',             cefr:'A1',exSV:'Kan jag betala med kort?',      exEN:'Can I pay by card?',                due:false,days:3},
+      {sv:'öppna',     en:'to open',            cefr:'A1',exSV:'Öppna dörren, tack.',           exEN:'Open the door, please.',            due:true},
+      {sv:'stänga',    en:'to close',           cefr:'A1',exSV:'Stäng fönstret, det är kallt.', exEN:'Close the window, it is cold.',     due:true},
+      {sv:'börja',     en:'to begin / start',   cefr:'A1',exSV:'När börjar filmen?',            exEN:'When does the movie start?',        due:false,days:4},
+      {sv:'sluta',     en:'to stop / finish',   cefr:'A1',exSV:'Vad tid slutar jobbet?',        exEN:'What time does work finish?',       due:true},
+      {sv:'stanna',    en:'to stay / stop',     cefr:'A1',exSV:'Stanna här ett ögonblick.',     exEN:'Stay here for a moment.',           due:false,days:6},
+      {sv:'flytta',    en:'to move',            cefr:'A1',exSV:'Vi ska flytta till Malmö.',     exEN:'We are going to move to Malmö.',    due:true},
+      {sv:'resa',      en:'to travel',          cefr:'A1',exSV:'Jag älskar att resa.',          exEN:'I love to travel.',                 due:true},
+      {sv:'besöka',    en:'to visit',           cefr:'A2',exSV:'Vi ska besöka Stockholm.',      exEN:'We are going to visit Stockholm.',  due:false,days:2},
+      {sv:'möta',      en:'to meet',            cefr:'A1',exSV:'Trevligt att möta dig.',        exEN:'Nice to meet you.',                 due:true},
+      {sv:'träffa',    en:'to meet (someone)',  cefr:'A1',exSV:'Ska vi träffas ikväll?',        exEN:'Shall we meet tonight?',            due:true},
+      {sv:'ringa',     en:'to call / phone',    cefr:'A1',exSV:'Ring mig imorgon.',             exEN:'Call me tomorrow.',                 due:false,days:5},
+      {sv:'skicka',    en:'to send',            cefr:'A1',exSV:'Skicka ett meddelande.',        exEN:'Send a message.',                   due:true},
+      {sv:'hämta',     en:'to pick up / fetch', cefr:'A1',exSV:'Kan du hämta barnen?',          exEN:'Can you pick up the children?',     due:true},
+      {sv:'lämna',     en:'to leave',           cefr:'A1',exSV:'Lämna ett meddelande.',         exEN:'Leave a message.',                  due:false,days:3},
+      {sv:'glömma',    en:'to forget',          cefr:'A1',exSV:'Glöm inte nyckeln!',            exEN:"Don't forget the key!",             due:true},
+      {sv:'minnas',    en:'to remember',        cefr:'A2',exSV:'Kommer du ihåg det?',           exEN:'Do you remember it?',               due:true},
+      {sv:'förstå',    en:'to understand',      cefr:'A1',exSV:'Förstår du svenska?',           exEN:'Do you understand Swedish?',        due:false,days:4},
+      {sv:'förklara',  en:'to explain',         cefr:'A2',exSV:'Kan du förklara det?',          exEN:'Can you explain that?',             due:true},
+      {sv:'lära sig',  en:'to learn',           cefr:'A1',exSV:'Jag lär mig svenska.',          exEN:'I am learning Swedish.',            due:false,days:7},
+      {sv:'studera',   en:'to study',           cefr:'A1',exSV:'Jag studerar på universitetet.',exEN:'I study at the university.',        due:true},
+      {sv:'arbeta',    en:'to work',            cefr:'A1',exSV:'Var arbetar du?',               exEN:'Where do you work?',                due:true},
+      {sv:'välja',     en:'to choose',          cefr:'A1',exSV:'Välj vad du vill.',             exEN:'Choose whatever you like.',         due:false,days:2},
+      {sv:'hitta',     en:'to find',            cefr:'A1',exSV:'Kan du hitta nyckeln?',         exEN:'Can you find the key?',             due:true},
+      {sv:'leta efter',en:'to search for',      cefr:'A1',exSV:'Jag letar efter min bok.',      exEN:'I am looking for my book.',         due:true},
+      {sv:'använda',   en:'to use',             cefr:'A1',exSV:'Hur använder man det?',         exEN:'How does one use that?',            due:false,days:6},
+      {sv:'spela',     en:'to play',            cefr:'A1',exSV:'Barn älskar att spela.',        exEN:'Children love to play.',            due:true},
+      {sv:'sjunga',    en:'to sing',            cefr:'A1',exSV:'Hon sjunger vackert.',          exEN:'She sings beautifully.',            due:true},
+      {sv:'dansa',     en:'to dance',           cefr:'A1',exSV:'Kan du dansa?',                 exEN:'Can you dance?',                    due:false,days:3},
+      {sv:'springa',   en:'to run',             cefr:'A1',exSV:'Jag springer varje morgon.',    exEN:'I run every morning.',              due:true},
+      {sv:'simma',     en:'to swim',            cefr:'A1',exSV:'Barnen simmar i sjön.',         exEN:'The children swim in the lake.',    due:false,days:5},
+      {sv:'cykla',     en:'to cycle / bike',    cefr:'A1',exSV:'Jag cyklar till jobbet.',       exEN:'I cycle to work.',                  due:true},
+      {sv:'köra',      en:'to drive',           cefr:'A1',exSV:'Kan du köra bil?',              exEN:'Can you drive a car?',              due:true},
+      {sv:'åka',       en:'to go (by vehicle)', cefr:'A1',exSV:'Vi åker tåg till Stockholm.',   exEN:'We go by train to Stockholm.',      due:false,days:4},
+      {sv:'stå',       en:'to stand',           cefr:'A1',exSV:'Stå still!',                    exEN:'Stand still!',                      due:true},
+      {sv:'sitta',     en:'to sit',             cefr:'A1',exSV:'Sätt dig ner.',                 exEN:'Sit down.',                         due:false,days:6},
+      {sv:'ligga',     en:'to lie down',        cefr:'A1',exSV:'Han ligger och sover.',         exEN:'He is lying down sleeping.',        due:true},
+      {sv:'sova',      en:'to sleep',           cefr:'A1',exSV:'Jag sover åtta timmar.',        exEN:'I sleep for eight hours.',          due:true},
+      {sv:'vakna',     en:'to wake up',         cefr:'A1',exSV:'Jag vaknar tidigt.',            exEN:'I wake up early.',                  due:false,days:2},
+      {sv:'äta',       en:'to eat',             cefr:'A1',exSV:'Ska vi äta middag?',            exEN:'Shall we eat dinner?',              due:true},
+      {sv:'dricka',    en:'to drink',           cefr:'A1',exSV:'Vill du dricka något?',         exEN:'Do you want to drink something?',   due:true},
+      {sv:'laga mat',  en:'to cook',            cefr:'A1',exSV:'Jag lagar mat ikväll.',         exEN:'I am cooking tonight.',             due:false,days:3},
+      {sv:'städa',     en:'to clean',           cefr:'A1',exSV:'Jag städar lägenheten.',        exEN:'I am cleaning the apartment.',      due:true},
+      {sv:'tvätta',    en:'to wash',            cefr:'A1',exSV:'Tvätta händerna!',              exEN:'Wash your hands!',                  due:false,days:5},
+      {sv:'handla',    en:'to shop',            cefr:'A1',exSV:'Vi ska handla mat.',            exEN:'We are going to shop for food.',    due:true},
+      {sv:'baka',      en:'to bake',            cefr:'A1',exSV:'Hon bakar bröd varje vecka.',   exEN:'She bakes bread every week.',       due:true},
+      {sv:'läsa',      en:'to read',            cefr:'A1',exSV:'Jag läser en bok.',             exEN:'I am reading a book.',              due:false,days:7},
+      {sv:'skriva',    en:'to write',           cefr:'A1',exSV:'Skriv ditt namn här.',          exEN:'Write your name here.',             due:true},
+      {sv:'rita',      en:'to draw',            cefr:'A1',exSV:'Barnen ritar bilder.',          exEN:'The children are drawing pictures.',due:true},
+      {sv:'räkna',     en:'to count',           cefr:'A1',exSV:'Räkna till tio.',               exEN:'Count to ten.',                     due:false,days:4},
+      {sv:'önska',     en:'to wish',            cefr:'A1',exSV:'Jag önskar dig lycka till.',    exEN:'I wish you good luck.',             due:true},
+      {sv:'hoppas',    en:'to hope',            cefr:'A1',exSV:'Jag hoppas att det går bra.',   exEN:'I hope it goes well.',              due:true},
+      {sv:'tro',       en:'to believe / think', cefr:'A1',exSV:'Jag tror det är sant.',         exEN:'I believe it is true.',             due:false,days:2},
+      {sv:'älska',     en:'to love',            cefr:'A1',exSV:'Jag älskar dig.',               exEN:'I love you.',                       due:true},
+      {sv:'gilla',     en:'to like',            cefr:'A1',exSV:'Gillar du musik?',              exEN:'Do you like music?',                due:false,days:6},
+      {sv:'le',        en:'to smile',           cefr:'A1',exSV:'Hon ler alltid.',               exEN:'She always smiles.',                due:true},
+      {sv:'skratta',   en:'to laugh',           cefr:'A1',exSV:'Det är roligt att skratta.',    exEN:'It is nice to laugh.',              due:true},
+      {sv:'gråta',     en:'to cry',             cefr:'A1',exSV:'Bebisen gråter.',               exEN:'The baby is crying.',               due:false,days:3},
+      {sv:'berätta',   en:'to tell / narrate',  cefr:'A1',exSV:'Berätta mer om dig.',           exEN:'Tell me more about yourself.',      due:true},
+      {sv:'vänta',     en:'to wait',            cefr:'A1',exSV:'Vänta ett ögonblick!',          exEN:'Wait a moment!',                    due:false,days:5},
+      {sv:'försöka',   en:'to try',             cefr:'A1',exSV:'Försök igen!',                  exEN:'Try again!',                        due:true},
+      {sv:'lyckas',    en:'to succeed',         cefr:'A2',exSV:'Du lyckas om du försöker.',     exEN:'You succeed if you try.',           due:true},
+      {sv:'klara',     en:'to manage / handle', cefr:'A2',exSV:'Klarar du det?',                exEN:'Can you manage it?',                due:false,days:4},
+      {sv:'bestämma',  en:'to decide',          cefr:'A2',exSV:'Du får bestämma.',              exEN:'You get to decide.',                due:true},
+      {sv:'planera',   en:'to plan',            cefr:'A2',exSV:'Vi planerar en resa.',          exEN:'We are planning a trip.',           due:true},
+      {sv:'hälsa',     en:'to greet / say hi',  cefr:'A1',exSV:'Hälsa på mig!',                 exEN:'Say hi for me!',                    due:false,days:2},
+      {sv:'tacka',     en:'to thank',           cefr:'A1',exSV:'Jag tackar dig.',               exEN:'I thank you.',                      due:true},
+      {sv:'presentera',en:'to introduce',       cefr:'A2',exSV:'Får jag presentera mig?',       exEN:'May I introduce myself?',           due:false,days:6},
+      {sv:'promenera', en:'to take a walk',     cefr:'A1',exSV:'Ska vi promenera?',             exEN:'Shall we take a walk?',             due:true},
+      {sv:'träna',     en:'to exercise / train',cefr:'A1',exSV:'Jag tränar varje dag.',         exEN:'I exercise every day.',             due:true},
+      {sv:'vila',      en:'to rest',            cefr:'A1',exSV:'Vila lite.',                    exEN:'Rest a little.',                    due:false,days:3},
+      {sv:'byta',      en:'to change / swap',   cefr:'A1',exSV:'Kan jag byta?',                 exEN:'Can I exchange this?',              due:true},
+      {sv:'leka',      en:'to play (children)', cefr:'A1',exSV:'Barnen leker ute.',             exEN:'The children are playing outside.', due:false,days:5},
+      {sv:'krama',     en:'to hug',             cefr:'A1',exSV:'Kan jag krama dig?',            exEN:'Can I hug you?',                    due:true},
+      {sv:'klä på sig',en:'to get dressed',     cefr:'A1',exSV:'Klä på dig snabbt!',            exEN:'Get dressed quickly!',              due:false,days:2},
+      {sv:'duka',      en:'to set the table',   cefr:'A1',exSV:'Kan du duka bordet?',           exEN:'Can you set the table?',            due:true},
+    ]
+  },
+  {
+    id:'lib-daily-life', emoji:'🏠', name:'Everyday Swedish – Daily Life',
+    cats:['all','beginner','daily'], cards:100, rating:4.7, studiers:198,
+    sub:'100 practical Swedish words for daily situations: body, clothing, home, transport, weather, food, and directions.',
+    words:[{sv:'kök',en:'kitchen'},{sv:'buss',en:'bus'},{sv:'regn',en:'rain'},{sv:'kaffe',en:'coffee'},{sv:'läkare',en:'doctor'}],
+    fullCards:[
+      {sv:'huvud',     en:'head',               cefr:'A1',exSV:'Jag har ont i huvudet.',        exEN:'I have a headache.',                due:true},
+      {sv:'ansikte',   en:'face',               cefr:'A1',exSV:'Hon har ett vackert ansikte.',  exEN:'She has a beautiful face.',         due:false,days:4},
+      {sv:'öga',       en:'eye',                cefr:'A1',exSV:'Hennes ögon är blåa.',          exEN:'Her eyes are blue.',                due:true},
+      {sv:'öra',       en:'ear',                cefr:'A1',exSV:'Jag har ont i örat.',           exEN:'I have earache.',                   due:true},
+      {sv:'näsa',      en:'nose',               cefr:'A1',exSV:'Snuta näsan.',                  exEN:'Blow your nose.',                   due:false,days:3},
+      {sv:'mun',       en:'mouth',              cefr:'A1',exSV:'Öppna munnen.',                 exEN:'Open your mouth.',                  due:true},
+      {sv:'tand',      en:'tooth',              cefr:'A1',exSV:'Borsta tänderna.',              exEN:'Brush your teeth.',                 due:false,days:6},
+      {sv:'hand',      en:'hand',               cefr:'A1',exSV:'Ge mig handen.',                exEN:'Give me your hand.',                due:true},
+      {sv:'fot',       en:'foot',               cefr:'A1',exSV:'Mina fötter är trötta.',        exEN:'My feet are tired.',                due:true},
+      {sv:'ben',       en:'leg',                cefr:'A1',exSV:'Jag har ont i benet.',          exEN:'I have a pain in my leg.',          due:false,days:2},
+      {sv:'arm',       en:'arm',                cefr:'A1',exSV:'Hon bröt armen.',               exEN:'She broke her arm.',                due:true},
+      {sv:'rygg',      en:'back',               cefr:'A1',exSV:'Jag har ont i ryggen.',         exEN:'I have back pain.',                 due:false,days:5},
+      {sv:'mage',      en:'stomach / belly',    cefr:'A1',exSV:'Jag har ont i magen.',          exEN:'I have a stomachache.',             due:true},
+      {sv:'hjärta',    en:'heart',              cefr:'A1',exSV:'Mitt hjärta slår fort.',        exEN:'My heart is beating fast.',         due:true},
+      {sv:'blod',      en:'blood',              cefr:'A2',exSV:'Han blöder.',                   exEN:'He is bleeding.',                   due:false,days:3},
+      {sv:'skjorta',   en:'shirt',              cefr:'A1',exSV:'En vit skjorta.',               exEN:'A white shirt.',                    due:true},
+      {sv:'byxor',     en:'trousers / pants',   cefr:'A1',exSV:'Blåa byxor.',                   exEN:'Blue trousers.',                    due:false,days:7},
+      {sv:'kjol',      en:'skirt',              cefr:'A1',exSV:'En röd kjol.',                  exEN:'A red skirt.',                      due:true},
+      {sv:'klänning',  en:'dress',              cefr:'A1',exSV:'En lång klänning.',             exEN:'A long dress.',                     due:true},
+      {sv:'jacka',     en:'jacket / coat',      cefr:'A1',exSV:'Ta på dig jackan.',             exEN:'Put on your jacket.',               due:false,days:4},
+      {sv:'skor',      en:'shoes',              cefr:'A1',exSV:'Nya skor.',                     exEN:'New shoes.',                        due:true},
+      {sv:'strumpor',  en:'socks',              cefr:'A1',exSV:'Varma strumpor.',               exEN:'Warm socks.',                       due:false,days:2},
+      {sv:'mössa',     en:'beanie / hat',       cefr:'A1',exSV:'Ta på dig mössan.',             exEN:'Put on your hat.',                  due:true},
+      {sv:'halsduk',   en:'scarf',              cefr:'A1',exSV:'En varm halsduk.',              exEN:'A warm scarf.',                     due:true},
+      {sv:'handskar',  en:'gloves',             cefr:'A1',exSV:'Glöm inte handskarna.',         exEN:"Don't forget the gloves.",          due:false,days:5},
+      {sv:'kök',       en:'kitchen',            cefr:'A1',exSV:'Jag lagar mat i köket.',        exEN:'I cook in the kitchen.',            due:true},
+      {sv:'sovrum',    en:'bedroom',            cefr:'A1',exSV:'Sovrummet är litet.',           exEN:'The bedroom is small.',             due:true},
+      {sv:'badrum',    en:'bathroom',           cefr:'A1',exSV:'Badrummet är fräscht.',         exEN:'The bathroom is fresh.',            due:false,days:3},
+      {sv:'vardagsrum',en:'living room',        cefr:'A1',exSV:'Vi sitter i vardagsrummet.',    exEN:'We sit in the living room.',        due:true},
+      {sv:'fönster',   en:'window',             cefr:'A1',exSV:'Öppna fönstret.',               exEN:'Open the window.',                  due:false,days:6},
+      {sv:'dörr',      en:'door',               cefr:'A1',exSV:'Stäng dörren.',                 exEN:'Close the door.',                   due:true},
+      {sv:'säng',      en:'bed',                cefr:'A1',exSV:'Jag ligger i sängen.',          exEN:'I am lying in bed.',                due:true},
+      {sv:'stol',      en:'chair',              cefr:'A1',exSV:'Sätt dig på stolen.',           exEN:'Sit on the chair.',                 due:false,days:4},
+      {sv:'bord',      en:'table',              cefr:'A1',exSV:'Bordet är runt.',               exEN:'The table is round.',               due:true},
+      {sv:'lampa',     en:'lamp / light',       cefr:'A1',exSV:'Tänd lampan.',                  exEN:'Turn on the lamp.',                 due:false,days:2},
+      {sv:'bil',       en:'car',                cefr:'A1',exSV:'En röd bil.',                   exEN:'A red car.',                        due:true},
+      {sv:'buss',      en:'bus',                cefr:'A1',exSV:'Ta bussen till centrum.',       exEN:'Take the bus to the city center.',  due:true},
+      {sv:'tåg',       en:'train',              cefr:'A1',exSV:'Tåget är försenat.',            exEN:'The train is delayed.',             due:false,days:5},
+      {sv:'tunnelbana',en:'subway / metro',     cefr:'A1',exSV:'Ta tunnelbanan.',               exEN:'Take the subway.',                  due:true},
+      {sv:'flygplan',  en:'airplane',           cefr:'A1',exSV:'Flygplanet lyfter kl 10.',      exEN:'The airplane departs at 10.',       due:true},
+      {sv:'cykel',     en:'bicycle',            cefr:'A1',exSV:'Jag cyklar till jobbet.',       exEN:'I cycle to work.',                  due:false,days:3},
+      {sv:'station',   en:'station',            cefr:'A1',exSV:'Vi möts vid stationen.',        exEN:'We meet at the station.',           due:true},
+      {sv:'hållplats', en:'bus stop',           cefr:'A1',exSV:'Nästa hållplats är centrum.',   exEN:'The next stop is the city center.', due:false,days:7},
+      {sv:'sol',       en:'sun',                cefr:'A1',exSV:'Solen skiner idag.',            exEN:'The sun is shining today.',         due:true},
+      {sv:'moln',      en:'cloud',              cefr:'A1',exSV:'Molnen är mörka.',              exEN:'The clouds are dark.',              due:true},
+      {sv:'regn',      en:'rain',               cefr:'A1',exSV:'Det regnar ute.',               exEN:'It is raining outside.',            due:false,days:4},
+      {sv:'snö',       en:'snow',               cefr:'A1',exSV:'Det snöar!',                    exEN:'It is snowing!',                    due:true},
+      {sv:'vind',      en:'wind',               cefr:'A1',exSV:'Det blåser idag.',              exEN:'It is windy today.',                due:false,days:2},
+      {sv:'väder',     en:'weather',            cefr:'A1',exSV:'Hur är vädret?',                exEN:'How is the weather?',               due:true},
+      {sv:'temperatur',en:'temperature',        cefr:'A1',exSV:'Temperaturen är tio grader.',   exEN:'The temperature is ten degrees.',   due:true},
+      {sv:'smörgås',   en:'sandwich',           cefr:'A1',exSV:'En ostsmörgås.',                exEN:'A cheese sandwich.',                due:false,days:5},
+      {sv:'soppa',     en:'soup',               cefr:'A1',exSV:'Varm soppa.',                   exEN:'Hot soup.',                         due:true},
+      {sv:'kött',      en:'meat',               cefr:'A1',exSV:'Jag äter inte kött.',           exEN:'I do not eat meat.',                due:true},
+      {sv:'fisk',      en:'fish',               cefr:'A1',exSV:'Friterad fisk.',                exEN:'Fried fish.',                       due:false,days:3},
+      {sv:'kyckling',  en:'chicken',            cefr:'A1',exSV:'Grillad kyckling.',             exEN:'Grilled chicken.',                  due:true},
+      {sv:'ris',       en:'rice',               cefr:'A1',exSV:'Ris med kyckling.',             exEN:'Rice with chicken.',                due:false,days:6},
+      {sv:'pasta',     en:'pasta',              cefr:'A1',exSV:'Pasta med tomatsås.',           exEN:'Pasta with tomato sauce.',          due:true},
+      {sv:'potatis',   en:'potato',             cefr:'A1',exSV:'Kokt potatis.',                 exEN:'Boiled potato.',                    due:true},
+      {sv:'tomat',     en:'tomato',             cefr:'A1',exSV:'Färska tomater.',               exEN:'Fresh tomatoes.',                   due:false,days:2},
+      {sv:'lök',       en:'onion',              cefr:'A1',exSV:'Stekt lök.',                    exEN:'Fried onion.',                      due:true},
+      {sv:'salt',      en:'salt',               cefr:'A1',exSV:'Mer salt, tack.',               exEN:'More salt, please.',                due:false,days:5},
+      {sv:'socker',    en:'sugar',              cefr:'A1',exSV:'Socker i kaffet.',              exEN:'Sugar in the coffee.',              due:true},
+      {sv:'kaffe',     en:'coffee',             cefr:'A1',exSV:'En kopp kaffe.',                exEN:'A cup of coffee.',                  due:true},
+      {sv:'te',        en:'tea',                cefr:'A1',exSV:'Varm kopp te.',                 exEN:'A hot cup of tea.',                 due:false,days:4},
+      {sv:'juice',     en:'juice',              cefr:'A1',exSV:'Apelsinjuice.',                 exEN:'Orange juice.',                     due:true},
+      {sv:'öl',        en:'beer',               cefr:'A1',exSV:'En kall öl.',                   exEN:'A cold beer.',                      due:false,days:3},
+      {sv:'vin',       en:'wine',               cefr:'A1',exSV:'Rött vin.',                     exEN:'Red wine.',                         due:true},
+      {sv:'affär',     en:'shop / store',       cefr:'A1',exSV:'Affären stänger kl 20.',        exEN:'The shop closes at 8 pm.',          due:true},
+      {sv:'mataffär',  en:'grocery store',      cefr:'A1',exSV:'Vi handlar i mataffären.',      exEN:'We shop at the grocery store.',     due:false,days:6},
+      {sv:'apotek',    en:'pharmacy',           cefr:'A1',exSV:'Apoteket är öppet.',            exEN:'The pharmacy is open.',             due:true},
+      {sv:'sjukhus',   en:'hospital',           cefr:'A1',exSV:'Sjukhuset är nära.',            exEN:'The hospital is nearby.',           due:true},
+      {sv:'läkare',    en:'doctor',             cefr:'A1',exSV:'Jag behöver träffa en läkare.', exEN:'I need to see a doctor.',           due:false,days:2},
+      {sv:'sjuksköterska',en:'nurse',           cefr:'A1',exSV:'Sjuksköterskan hjälper honom.', exEN:'The nurse helps him.',              due:true},
+      {sv:'polis',     en:'police',             cefr:'A1',exSV:'Ring polisen!',                 exEN:'Call the police!',                  due:false,days:5},
+      {sv:'lärare',    en:'teacher',            cefr:'A1',exSV:'Läraren förklarar.',            exEN:'The teacher explains.',             due:true},
+      {sv:'elev',      en:'pupil / student',    cefr:'A1',exSV:'Eleverna lyssnar.',             exEN:'The pupils are listening.',         due:true},
+      {sv:'kontor',    en:'office',             cefr:'A1',exSV:'Jag jobbar på kontoret.',       exEN:'I work at the office.',             due:false,days:3},
+      {sv:'möte',      en:'meeting',            cefr:'A1',exSV:'Vi har ett möte kl tre.',       exEN:'We have a meeting at three.',       due:true},
+      {sv:'telefon',   en:'phone',              cefr:'A1',exSV:'Min telefon ringer.',           exEN:'My phone is ringing.',              due:false,days:7},
+      {sv:'dator',     en:'computer',           cefr:'A1',exSV:'Jag arbetar på datorn.',        exEN:'I work on the computer.',           due:true},
+      {sv:'bok',       en:'book',               cefr:'A1',exSV:'En intressant bok.',            exEN:'An interesting book.',              due:true},
+      {sv:'tidning',   en:'newspaper',          cefr:'A1',exSV:'Läsa tidningen.',               exEN:'Read the newspaper.',               due:false,days:4},
+      {sv:'brev',      en:'letter',             cefr:'A1',exSV:'Ett brev i brevlådan.',         exEN:'A letter in the mailbox.',          due:true},
+      {sv:'pengar',    en:'money',              cefr:'A1',exSV:'Jag har inga pengar.',          exEN:'I have no money.',                  due:false,days:2},
+      {sv:'pris',      en:'price',              cefr:'A1',exSV:'Vad är priset?',                exEN:'What is the price?',                due:true},
+      {sv:'billig',    en:'cheap / inexpensive',cefr:'A1',exSV:'Det är billigt.',               exEN:'It is cheap.',                      due:true},
+      {sv:'dyr',       en:'expensive',          cefr:'A1',exSV:'Det är för dyrt.',              exEN:'It is too expensive.',              due:false,days:5},
+      {sv:'gratis',    en:'free (of charge)',   cefr:'A1',exSV:'Det är gratis.',                exEN:'It is free.',                       due:true},
+      {sv:'höger',     en:'right (direction)',  cefr:'A1',exSV:'Sväng till höger.',             exEN:'Turn to the right.',                due:true},
+      {sv:'vänster',   en:'left (direction)',   cefr:'A1',exSV:'Sväng till vänster.',           exEN:'Turn to the left.',                 due:false,days:3},
+      {sv:'rakt fram', en:'straight ahead',     cefr:'A1',exSV:'Gå rakt fram.',                 exEN:'Go straight ahead.',                due:true},
+      {sv:'nära',      en:'near / close',       cefr:'A1',exSV:'Sjukhuset är nära.',            exEN:'The hospital is near.',             due:false,days:6},
+      {sv:'långt',     en:'far away',           cefr:'A1',exSV:'Det är långt härifrån.',        exEN:'It is far from here.',              due:true},
+      {sv:'upp',       en:'up',                 cefr:'A1',exSV:'Gå upp för trappan.',           exEN:'Go up the stairs.',                 due:true},
+      {sv:'ner',       en:'down',               cefr:'A1',exSV:'Kom ner!',                      exEN:'Come down!',                        due:false,days:4},
+      {sv:'tillbaka',  en:'back / return',      cefr:'A1',exSV:'Kom tillbaka snart.',           exEN:'Come back soon.',                   due:true},
+      {sv:'trappa',    en:'staircase / stairs', cefr:'A1',exSV:'Gå uppför trappan.',            exEN:'Go up the staircase.',              due:false,days:2},
+      {sv:'hiss',      en:'elevator / lift',    cefr:'A1',exSV:'Ta hissen till tredje våning.', exEN:'Take the elevator to the third floor.',due:true},
+      {sv:'karta',     en:'map',                cefr:'A1',exSV:'Har du en karta?',              exEN:'Do you have a map?',                due:false,days:5},
+      {sv:'pass',      en:'passport',           cefr:'A1',exSV:'Glöm inte passet.',             exEN:"Don't forget your passport.",       due:true},
+    ]
+  },
+];
+
+let libActiveCat = 'all';
+let libActiveSearch = '';
+let libOpenDeck = null;
+let libImportedIds = new Set();
+
+function libRender() {
+  const q = libActiveSearch.toLowerCase();
+  const filtered = LIB_DECKS.filter(d => {
+    const catOk = libActiveCat === 'all' || d.cats.includes(libActiveCat);
+    const searchOk = !q || d.name.toLowerCase().includes(q);
+    return catOk && searchOk;
+  });
+  document.getElementById('lib-count').textContent = filtered.length + ' deck' + (filtered.length !== 1 ? 's' : '');
+  const grid = document.getElementById('lib-grid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--muted);font-size:14px">No decks found</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(d => {
+    const stars = d.rating ? '★ ' + d.rating : '—';
+    const imported = libImportedIds.has(d.id);
+    return `<div class="lib-card" onclick="libOpenSheet('${d.id}')">
+      <div class="lib-card-emoji">${d.emoji}</div>
+      <div class="lib-card-name">${d.name}</div>
+      <div class="lib-card-meta">
+        <div class="lib-card-stars">${d.rating ? '★ ' + d.rating : ''} <span style="color:var(--muted)">${d.studiers} studying</span></div>
+        <div class="lib-card-count">🃏 ${d.cards.toLocaleString()} cards</div>
+      </div>
+      <button class="lib-card-import" style="${imported ? 'background:#dcfce7;color:#16a34a' : ''}">${imported ? '✓ Added' : '+ Add to my decks'}</button>
+    </div>`;
+  }).join('');
+}
+
+function libSetCat(el, cat) {
+  libActiveCat = cat;
+  document.querySelectorAll('.lib-cat').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  libRender();
+}
+
+function libFilter() {
+  const input = document.getElementById('lib-search');
+  libActiveSearch = input.value;
+  document.getElementById('lib-search-clear').style.display = input.value ? 'block' : 'none';
+  libRender();
+}
+
+function libClearSearch() {
+  document.getElementById('lib-search').value = '';
+  libActiveSearch = '';
+  document.getElementById('lib-search-clear').style.display = 'none';
+  libRender();
+}
+
+function libOpenSheet(id) {
+  const deck = LIB_DECKS.find(d => d.id === id);
+  if (!deck) return;
+  libOpenDeck = deck;
+  const imported = libImportedIds.has(id);
+  document.getElementById('lsh-emoji').textContent = deck.emoji;
+  document.getElementById('lsh-title').textContent = deck.name;
+  document.getElementById('lsh-sub').textContent = deck.sub;
+  document.getElementById('lsh-cards').textContent = deck.cards.toLocaleString();
+  document.getElementById('lsh-rating').textContent = deck.rating ? '★ ' + deck.rating : '—';
+  document.getElementById('lsh-studiers').textContent = deck.studiers;
+  document.getElementById('lsh-words').innerHTML = deck.words.map(w =>
+    `<div class="lib-sheet-word">
+      <span class="lib-sheet-word-sv">${w.sv}</span>
+      <span class="lib-sheet-word-en">${w.en}</span>
+    </div>`
+  ).join('');
+  const badge = document.getElementById('lsh-imported-badge');
+  const btn = document.getElementById('lsh-import-btn');
+  // Reset onclick to default
+  btn.onclick = libImportDeck;
+  if (imported) {
+    badge.style.display = 'block';
+    btn.textContent = 'View deck →';
+    btn.style.background = ''; btn.style.color = '';
+  } else {
+    badge.style.display = 'none';
+    btn.textContent = 'Add to my decks';
+    btn.style.background = ''; btn.style.color = '';
+  }
+  const overlay = document.getElementById('lib-sheet-overlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.style.display = 'flex');
+}
+
+function closeLibSheet() {
+  document.getElementById('lib-sheet-overlay').style.display = 'none';
+  libOpenDeck = null;
+}
+
+function libImportDeck() {
+  if (!libOpenDeck) return;
+  const deck = libOpenDeck;
+
+  // If already imported → just navigate to the deck
+  if (libImportedIds.has(deck.id)) {
+    closeLibSheet();
+    nav('home');
+    setTimeout(() => openDeckDetail(deck.id), 300);
+    return;
+  }
+
+  // 1. Create real card objects from fullCards
+  const cefrColors = { A1:'var(--a1)', A2:'var(--a2)', B1:'var(--b1)', B2:'var(--b2)', C1:'var(--c1)', C2:'var(--c2)' };
+  const newCards = deck.fullCards.map((c, i) => ({
+    id: deck.id + '-' + i,
+    swedish: c.sv,
+    english: c.en,
+    cefr: c.cefr,
+    color: cefrColors[c.cefr] || 'var(--b1)',
+    exampleSentenceSV: c.exSV,
+    exampleSentenceEN: c.exEN,
+    sourceContext: '',
+    due: c.due,
+    days: c.days || 0,
+    deckId: deck.id,
+    // legacy flat fields for review screen compatibility
+    sv: c.sv, en: c.en,
+    exSV: c.exSV, exEN: c.exEN,
+  }));
+
+  // 2. Add cards to CARDS array
+  CARDS.push(...newCards);
+
+  // 3. Create deck entry in DECKS_DATA (unshift = top of list)
+  DECKS_DATA.unshift({ id: deck.id, name: deck.name, color: 'var(--b1)', cards: newCards });
+
+  // 4. Mark as imported
+  libImportedIds.add(deck.id);
+
+  // 5. Update home stats
+  updateHomeStats();
+
+  // 6. Re-render library grid
+  libRender();
+
+  // 7. Show success + "View deck" button
+  const badge = document.getElementById('lsh-imported-badge');
+  const btn = document.getElementById('lsh-import-btn');
+  badge.style.display = 'block';
+  btn.textContent = 'View deck →';
+  btn.style.background = '';
+  btn.style.color = '';
+  btn.onclick = () => {
+    closeLibSheet();
+    nav('home');
+    setTimeout(() => openDeckDetail(deck.id), 300);
+  };
+}
+
+function cardStatus(c) { return c.due ? 'learning' : (c.days > 5 ? 'mastered' : 'learning'); }
+
+function setDeckMode(mode) {
+  deckViewMode = mode;
+  document.getElementById('mode-deck').style.background = mode === 'deck' ? 'var(--surface)' : 'none';
+  document.getElementById('mode-deck').style.color = mode === 'deck' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('mode-level').style.background = mode === 'level' ? 'var(--surface)' : 'none';
+  document.getElementById('mode-level').style.color = mode === 'level' ? 'var(--text)' : 'var(--muted)';
+  renderDeckView();
+}
+
+function renderDeckView() {
+  const el = document.getElementById('home-deck-content');
+  if (deckViewMode === 'deck') {
+    el.innerHTML = `<div style="padding:0 16px 24px;display:flex;flex-direction:column;gap:10px">` +
+      DECKS_DATA.map(deck => {
+        const total = deck.cards.length;
+        const due = deck.cards.filter(c => c.due).length;
+        const mastered = deck.cards.filter(c => !c.due && c.days > 5).length;
+        const learning = total - mastered;
+        const lPct = total ? learning/total : 0;
+        const mPct = total ? mastered/total : 0;
+        return `
+          <div onclick="openDeckDetail('${deck.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:17px;font-weight:700;color:var(--text)">${deck.name}</div>
+              <div style="font-size:20px;color:var(--muted)">›</div>
+            </div>
+            <div style="font-size:13px;color:var(--muted)">Cards for today: <strong style="color:${due>0?'var(--accent)':'var(--muted)'}">${due}</strong></div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--border);margin-top:2px">
+              <div style="flex:${lPct};background:#22c55e"></div>
+              <div style="flex:${mPct};background:var(--accent)"></div>
+            </div>
+            <div style="display:flex;gap:12px">
+              <span style="font-size:11px;color:var(--muted)">● ${learning} Learning</span>
+              <span style="font-size:11px;color:var(--muted)">● ${mastered} Mastered</span>
+            </div>
+          </div>`;
+      }).join('') + `</div>`;
+  } else {
+    // By level — grouped CEFR summary rows
+    const levels = [
+      { cefr:'A1', label:'Everyday Basics',     color:'var(--a1)' },
+      { cefr:'A2', label:'Daily Life',           color:'var(--a2)' },
+      { cefr:'B1', label:'Intermediate',         color:'var(--b1)' },
+      { cefr:'B2', label:'Upper Intermediate',   color:'var(--b2)' },
+      { cefr:'C1', label:'Advanced',             color:'var(--c1)' },
+      { cefr:'C2', label:'Mastery',              color:'var(--c2)' },
+    ];
+    const totalCards = CARDS.length;
+    el.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden">` +
+      levels.map((lvl, i) => {
+        const levelCards = CARDS.filter(c => c.cefr === lvl.cefr);
+        const total = levelCards.length;
+        if (total === 0) return '';
+        const due = levelCards.filter(c => c.due).length;
+        const mastered = levelCards.filter(c => !c.due && c.days > 5).length;
+        const learning = total - mastered;
+        const pct = totalCards ? total / totalCards : 0;
+        const isLast = i === levels.length - 1;
+        return `
+          <div onclick="openDeckDetail('starter-${lvl.cefr.toLowerCase()}')" style="display:flex;align-items:center;gap:10px;padding:12px;${isLast?'':'border-bottom:1px solid var(--border);'}cursor:pointer">
+            <span class="pill" style="background:${lvl.color};flex-shrink:0">${lvl.cefr}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                <span style="font-size:13px;font-weight:600;color:var(--text)">${lvl.label}</span>
+                <span style="font-size:12px;font-weight:700;color:${due>0?'var(--accent)':'var(--muted)'}">
+                  ${due > 0 ? `${due} due` : `${total} cards`}
+                </span>
+              </div>
+              <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${Math.round((learning/total)*100)}%;background:${lvl.color};border-radius:3px"></div>
+              </div>
+            </div>
+            <span style="font-size:14px;color:var(--muted);flex-shrink:0">›</span>
+          </div>`;
+      }).join('') +
+      `</div>`;
+  }
+}
+renderDeckView();
+
+let currentDeckId = null;
+
+function openDeckDetail(deckId) {
+  // 'all' = virtual deck showing every card
+  const deck = deckId === 'all'
+    ? { id: 'all', name: 'All Cards', cards: CARDS }
+    : DECKS_DATA.find(d => d.id === deckId);
+  if (!deck) return;
+  currentDeckId = deckId;
+  const overlay = document.getElementById('deck-detail-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('detail-title').textContent = deck.name;
+  // Show/hide delete button (hide for 'all' virtual deck)
+  document.getElementById('detail-delete-btn').style.display = deckId === 'all' ? 'none' : 'block';
+
+  const total = deck.cards.length;
+  const due = deck.cards.filter(c => c.due).length;
+  const mastered = deck.cards.filter(c => !c.due && c.days > 5).length;
+  const learning = total - mastered;
+  const notStudied = 0;
+  const lPct = total ? learning/total : 0;
+  const mPct = total ? mastered/total : 0;
+
+  document.getElementById('detail-stats').innerHTML = `
+    <div style="font-size:56px;font-weight:800;color:var(--text);line-height:1">${due}</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:4px">cards for today</div>
+    <div style="display:flex;border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="flex:1;text-align:center;border-right:1px solid var(--border)">
+        <div style="font-size:20px">📥</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text)">${notStudied}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Not studied</div>
+      </div>
+      <div style="flex:1;text-align:center;border-right:1px solid var(--border)">
+        <div style="font-size:20px">🕐</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text)">${learning}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Learning</div>
+      </div>
+      <div style="flex:1;text-align:center">
+        <div style="font-size:20px">⭐</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text)">${mastered}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Mastered</div>
+      </div>
+    </div>
+    <button onclick="closeDeckDetail();goReview()" style="margin-top:14px;width:100%;background:var(--accent);color:white;border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">Study cards</button>`;
+
+  document.getElementById('detail-progress').innerHTML = `
+    <div style="font-size:14px;font-weight:700;color:var(--text)">Cards in deck (${total})</div>
+    <div style="display:flex;height:8px;border-radius:4px;overflow:hidden">
+      <div style="flex:${lPct};background:#22c55e"></div>
+      <div style="flex:${mPct};background:var(--accent)"></div>
+      <div style="flex:${Math.max(0,1-lPct-mPct)};background:var(--border)"></div>
+    </div>
+    <div style="display:flex;gap:14px">
+      <span style="font-size:11px;color:var(--muted)"><span style="color:var(--border)">●</span> ${notStudied} Not studied</span>
+      <span style="font-size:11px;color:var(--muted)"><span style="color:#22c55e">●</span> ${learning} Learning</span>
+      <span style="font-size:11px;color:var(--muted)"><span style="color:var(--accent)">●</span> ${mastered} Mastered</span>
+    </div>`;
+
+  document.getElementById('status-chips').innerHTML = [
+    ['all','All ('+total+')'],['notStudied','Not studied (0)'],['learning','Learning ('+learning+')'],['mastered','Mastered ('+mastered+')']
+  ].map(([id,lbl],i) => `<span style="padding:6px 14px;border-radius:20px;${i===0?'background:var(--text);color:white;':'background:var(--surface);border:1px solid var(--border);color:var(--muted);'}font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer">${lbl}</span>`).join('');
+
+  document.getElementById('detail-cards').innerHTML = deck.cards.map(c => {
+    const sv = c.sv || c.swedish || '';
+    const en = c.en || c.english || '';
+    const st = c.due ? 'Learning' : 'Mastered';
+    const stColor = c.due ? '#22c55e' : 'var(--accent)';
+    const cardColor = c.color || (c.cefr ? 'var(--'+c.cefr.toLowerCase()+')' : 'var(--a1)');
+    const cardId = c.id || sv;
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;overflow:hidden;cursor:pointer" onclick="openCardQuick('${cardId}')">
+        <div style="width:4px;align-self:stretch;background:${stColor}"></div>
+        <div style="flex:1;padding:12px 8px 12px 12px">
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${sv}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">${en}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <span style="background:${cardColor};color:white;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:800">${c.cefr||''}</span>
+            <span style="font-size:11px;font-weight:600;color:${stColor}">${st}</span>
+          </div>
+        </div>
+        <div style="padding-right:4px;display:flex;align-items:center" onclick="event.stopPropagation()">
+          ${c.due ? '<span style="font-size:11px;font-weight:700;color:var(--danger);padding-right:4px">Due now</span>' : `<span style="font-size:11px;color:var(--muted);padding-right:4px">in ${c.days||1}d</span>`}
+          <button class="icon-btn" onclick="speak('${sv}','sv')">🔊</button>
+          <button class="icon-btn" onclick="deleteCardFromDeck('${cardId}')">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function closeDeckDetail() {
+  document.getElementById('deck-detail-overlay').style.display = 'none';
+  currentDeckId = null;
+}
+
+// ── CARD QUICK-VIEW ──
+function openCardQuick(cardId) {
+  const c = CARDS.find(x => x.id === cardId || x.sv === cardId || x.swedish === cardId);
+  if (!c) return;
+  const sv = c.sv || c.swedish || '';
+  const en = c.en || c.english || '';
+  const exSV = c.exSV || c.exampleSentenceSV || '';
+  const exEN = c.exEN || c.exampleSentenceEN || '';
+  const cardColor = c.color || (c.cefr ? 'var(--'+c.cefr.toLowerCase()+')' : 'var(--a1)');
+  const st = c.due ? 'Learning' : 'Mastered';
+  const stColor = c.due ? '#22c55e' : 'var(--accent)';
+
+  document.getElementById('cq-cefr').textContent = c.cefr || '';
+  document.getElementById('cq-cefr').style.background = cardColor;
+  document.getElementById('cq-sv').textContent = sv;
+  document.getElementById('cq-en').textContent = en;
+
+  const sepEl = document.getElementById('cq-sep');
+  const exSvEl = document.getElementById('cq-ex-sv');
+  const exEnEl = document.getElementById('cq-ex-en');
+  if (exSV || exEN) {
+    sepEl.style.display = 'block';
+    exSvEl.style.display = exSV ? 'block' : 'none';
+    exSvEl.textContent = exSV ? `"${exSV}"` : '';
+    exEnEl.style.display = exEN ? 'block' : 'none';
+    exEnEl.textContent = exEN || '';
+  } else {
+    sepEl.style.display = 'none';
+    exSvEl.style.display = 'none';
+    exEnEl.style.display = 'none';
+  }
+
+  document.getElementById('cq-status-row').innerHTML =
+    `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${stColor};margin-right:4px"></span>
+     <span style="font-weight:600;color:${stColor}">${st}</span>
+     ${c.due ? ' · <span style="color:var(--danger);font-weight:600">Due now</span>' : ` · <span>Next in ${c.days||1}d</span>`}`;
+
+  const studyBtn = document.getElementById('cq-study-btn');
+  if (c.due) {
+    studyBtn.style.display = 'block';
+    studyBtn.textContent = '▶  Study now';
+  } else {
+    studyBtn.style.display = 'none';
+  }
+
+  const overlay = document.getElementById('card-quick-overlay');
+  overlay.style.display = 'flex';
+}
+function closeCardQuick() {
+  document.getElementById('card-quick-overlay').style.display = 'none';
+}
+function deleteCardFromDeck(cardId) {
+  // Remove card from CARDS and from its deck
+  const idx = CARDS.findIndex(c => c.id === cardId || c.sv === cardId || c.swedish === cardId);
+  if (idx !== -1) {
+    const c = CARDS[idx];
+    CARDS.splice(idx, 1);
+    // Remove from deck too
+    DECKS_DATA.forEach(d => {
+      const ci = d.cards.findIndex(x => x === c || x.id === cardId);
+      if (ci !== -1) d.cards.splice(ci, 1);
+    });
+  }
+  // Re-render
+  if (currentDeckId) openDeckDetail(currentDeckId);
+  updateHomeStats();
+}
+
+function deleteDeck() {
+  if (!currentDeckId || currentDeckId === 'all') return;
+  const deck = DECKS_DATA.find(d => d.id === currentDeckId);
+  if (!deck) return;
+
+  // Show confirm in the detail-delete-btn area
+  const btn = document.getElementById('detail-delete-btn');
+  if (btn.dataset.confirming === '1') {
+    // Confirmed — remove deck + its cards
+    const cardIds = new Set(deck.cards.map(c => c.id));
+    // Remove cards from CARDS array
+    for (let i = CARDS.length - 1; i >= 0; i--) {
+      if (CARDS[i].deckId === currentDeckId || cardIds.has(CARDS[i].id)) CARDS.splice(i, 1);
+    }
+    // Remove deck from DECKS_DATA
+    const di = DECKS_DATA.findIndex(d => d.id === currentDeckId);
+    if (di !== -1) DECKS_DATA.splice(di, 1);
+    // Remove from library imported set
+    libImportedIds.delete(currentDeckId);
+    libRender();
+    closeDeckDetail();
+    updateHomeStats();
+    // Reset confirm state
+    btn.dataset.confirming = '0';
+    btn.textContent = '🗑';
+    btn.style.color = '';
+  } else {
+    // First tap — ask for confirmation
+    btn.dataset.confirming = '1';
+    btn.textContent = '⚠️ Tap to confirm';
+    btn.style.color = 'var(--danger)';
+    btn.style.fontSize = '12px';
+    btn.style.fontWeight = '700';
+    // Auto-reset after 3s if not confirmed
+    setTimeout(() => {
+      if (btn.dataset.confirming === '1') {
+        btn.dataset.confirming = '0';
+        btn.textContent = '🗑';
+        btn.style.color = '';
+        btn.style.fontSize = '';
+        btn.style.fontWeight = '';
+      }
+    }, 3000);
+  }
+}
+
+// ── ADD DECK MODE ──
+let addDeckMode = 'current';
+let addSelectedDeckId = null;
+function setAddDeckMode(mode) {
+  const currentBtn = document.getElementById('add-mode-current');
+  const noDecks = DECKS_DATA.length === 0;
+
+  // If no decks exist, hide "Current deck" button and force 'new'
+  if (noDecks) {
+    currentBtn.style.display = 'none';
+    mode = 'new';
+  } else {
+    currentBtn.style.display = '';
+    // Populate deck chips from DECKS_DATA
+    if (mode === 'current') {
+      const row = document.getElementById('add-current-deck-row');
+      row.innerHTML = DECKS_DATA.map((d, i) =>
+        `<span class="mini-chip${i===0?' on':''}" onclick="selectDeckChip(this,'${d.id}')">${d.name}</span>`
+      ).join('');
+      addSelectedDeckId = DECKS_DATA[0]?.id || null;
+    }
+  }
+
+  addDeckMode = mode;
+  const isCurrent = mode === 'current';
+  currentBtn.style.background = isCurrent ? 'var(--accent)' : 'var(--surface)';
+  currentBtn.style.color = isCurrent ? 'white' : 'var(--text)';
+  currentBtn.style.border = isCurrent ? 'none' : '1px solid var(--border)';
+  const newBtn = document.getElementById('add-mode-new');
+  newBtn.style.background = !isCurrent ? 'var(--accent)' : 'var(--surface)';
+  newBtn.style.color = !isCurrent ? 'white' : 'var(--text)';
+  newBtn.style.border = !isCurrent ? 'none' : '1px solid var(--border)';
+  document.getElementById('add-current-deck-row').style.display = isCurrent ? 'flex' : 'none';
+  document.getElementById('add-new-deck-row').style.display = !isCurrent ? 'flex' : 'none';
+}
+function selectDeckChip(el, deckId) {
+  document.querySelectorAll('#add-current-deck-row .mini-chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  addSelectedDeckId = deckId;
+}
+
+// ── ADD TABS ──
+function switchAddTab(btn, panelId) {
+  document.querySelectorAll('.tsw-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  ['at-word','at-text','at-camera','at-csv'].forEach(id => {
+    document.getElementById(id).style.display = id === panelId ? 'flex' : 'none';
+  });
+}
+// fake translate
+function doTranslate() {
+  const v = document.getElementById('word-in').value.trim();
+  if (!v) return;
+  document.getElementById('word-result').style.display = 'block';
+  document.getElementById('res-sv').textContent = v;
+  document.getElementById('res-en').textContent = '(translation)';
+}
+
+// ── MANUAL WORD ENTRY ──
+let manualCefr = null;
+
+function toggleManualEntry() {
+  const panel = document.getElementById('manual-entry');
+  const btn   = document.getElementById('manual-toggle-btn');
+  const open  = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = open ? 'flex' : 'none';
+  btn.textContent = open ? '− hide manual entry' : '+ add manually';
+  // Sync Swedish word if already typed
+  if (open) syncManualSv();
+}
+
+function syncManualSv() {
+  const sv = document.getElementById('word-in').value.trim();
+  const manSv = document.getElementById('manual-sv');
+  if (manSv && sv) manSv.value = sv;
+}
+
+function selectManualCefr(el, cefr) {
+  document.querySelectorAll('#manual-entry .mini-chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  manualCefr = cefr;
+}
+
+function doAddManual() {
+  const sv = document.getElementById('manual-sv').value.trim();
+  const en = document.getElementById('manual-en').value.trim();
+  if (!sv || !en) {
+    // Shake the empty field
+    const el = !sv ? document.getElementById('manual-sv') : document.getElementById('manual-en');
+    el.style.borderColor = 'var(--danger)';
+    el.focus();
+    setTimeout(() => el.style.borderColor = '', 1500);
+    return;
+  }
+
+  const cefrColors = { A1:'var(--a1)', A2:'var(--a2)', B1:'var(--b1)', B2:'var(--b2)', C1:'var(--c1)', C2:'var(--c2)' };
+  const exSV = document.getElementById('manual-ex-sv').value.trim();
+  const exEN = document.getElementById('manual-ex-en').value.trim();
+  const ts   = Date.now();
+
+  // Resolve target deck (same logic as doImportCards)
+  let targetDeck = null;
+  if (addDeckMode === 'new') {
+    const nameEl   = document.getElementById('new-deck-name');
+    const deckName = (nameEl && nameEl.value.trim()) || 'My Deck';
+    const newId    = 'deck-' + ts;
+    targetDeck     = { id: newId, name: deckName, color: 'var(--b1)', cards: [] };
+    DECKS_DATA.unshift(targetDeck);
+  } else {
+    targetDeck = DECKS_DATA.find(d => d.id === addSelectedDeckId) || DECKS_DATA[0];
+  }
+  if (!targetDeck) return;
+
+  const card = {
+    id: targetDeck.id + '-manual-' + ts,
+    sv, swedish: sv,
+    en, english: en,
+    cefr: manualCefr,
+    color: manualCefr ? cefrColors[manualCefr] : 'var(--b1)',
+    exSV, exEN,
+    exampleSentenceSV: exSV, exampleSentenceEN: exEN,
+    due: true, days: 1,
+    deckId: targetDeck.id,
+  };
+
+  CARDS.push(card);
+  targetDeck.cards.push(card);
+
+  // Reset form
+  document.getElementById('manual-sv').value = '';
+  document.getElementById('manual-en').value = '';
+  document.getElementById('manual-ex-sv').value = '';
+  document.getElementById('manual-ex-en').value = '';
+  document.getElementById('word-in').value = '';
+  document.querySelectorAll('#manual-entry .mini-chip').forEach(c => c.classList.remove('on'));
+  manualCefr = null;
+
+  // Flash success on button
+  const btn = document.querySelector('#manual-entry .btn-primary');
+  const orig = btn.textContent;
+  btn.textContent = '✓ Added!';
+  btn.style.background = '#16a34a';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1400);
+
+  updateHomeStats();
+}
+
+// ── EXTRACT VOCABULARY (Text tab) ──
+function doExtractVocab() {
+  const text = document.querySelector('#at-text textarea').value.trim();
+  if (!text) return;
+  // No API key — show premium upsell
+  const btn = document.querySelector('#at-text .btn-primary');
+  const orig = btn.textContent;
+  btn.textContent = '⚠️ Upgrade to premium to use this feature';
+  btn.style.background = 'var(--danger, #ef4444)';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.style.background = '';
+    btn.disabled = false;
+  }, 3000);
+}
+
+function showCameraPremium(row) {
+  const msg = document.getElementById('camera-premium-msg');
+  // Briefly highlight the tapped row
+  row.style.borderColor = '#fca5a5';
+  setTimeout(() => row.style.borderColor = '', 1500);
+  // Show message
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
+}
+
+// ── REVIEW ──
+let rvQueue = [], rvIdx = 0, rvFlipped = false, rvReviewedCount = 0;
+
+const CEFR_COLOR_MAP = { A1:'var(--a1)', A2:'var(--a2)', B1:'var(--b1)', B2:'var(--b2)', C1:'var(--c1)', C2:'var(--c2)' };
+
+function loadRVCard() {
+  // Restore flip-area and bottom in case it was replaced by done screen
+  if (!document.getElementById('card-face')) {
+    document.getElementById('flip-area').innerHTML = `<div class="card-face" id="card-face"></div>`;
+    document.getElementById('rv-bottom').innerHTML = `
+      <div class="tap-hint-row" id="rv-hint-row">Tap the card to flip</div>
+      <div class="rating-wrap" id="rv-rating" style="display:none">
+        <div class="rating-q">HOW WELL DID YOU KNOW IT?</div>
+        <div class="rating-row">
+          <button class="r-btn" style="background:#fef2f2;color:#dc2626" onclick="rate(0)">Again</button>
+          <button class="r-btn" style="background:#fff7ed;color:#d97706" onclick="rate(1)">Hard</button>
+          <button class="r-btn" style="background:#f0fdf4;color:#16a34a" onclick="rate(3)">Good</button>
+          <button class="r-btn" style="background:#eff6ff;color:#2563eb" onclick="rate(5)">Easy</button>
+        </div>
+      </div>`;
+  }
+  if (rvQueue.length === 0 || rvIdx >= rvQueue.length) { showDone(); return; }
+  const c = rvQueue[rvIdx];
+  const cardColor = c.color || CEFR_COLOR_MAP[c.cefr] || 'var(--b1)';
+  rvFlipped = false;
+  const face = document.getElementById('card-face');
+  face.className = 'card-face';
+  face.innerHTML = `
+    <span class="cefr-tag" style="background:${cardColor}">${c.cefr || ''}</span>
+    <div class="card-word">${c.sv || c.swedish || ''}</div>
+    <button class="speak-btn" onclick="event.stopPropagation();speak('${(c.sv||c.swedish||'').replace(/'/g,"\\'")}','sv')">🔊</button>
+    <span class="tap-hint-abs">👆 Tap to reveal</span>`;
+  document.getElementById('rv-hint-row').style.display = 'block';
+  document.getElementById('rv-rating').style.display = 'none';
+  document.getElementById('rv-ctr').textContent = `${rvIdx + 1} / ${rvQueue.length}`;
+  document.getElementById('rv-prog').style.width = `${(rvIdx / rvQueue.length) * 100}%`;
+}
+
+function flipCard() {
+  if (rvFlipped) return;
+  rvFlipped = true;
+  const c = rvQueue[rvIdx];
+  const cardColor = c.color || CEFR_COLOR_MAP[c.cefr] || 'var(--b1)';
+  const sv = c.sv || c.swedish || '';
+  const en = c.en || c.english || '';
+  const exSV = c.exSV || c.exampleSentenceSV || '';
+  const exEN = c.exEN || c.exampleSentenceEN || '';
+  const face = document.getElementById('card-face');
+  face.classList.add('flipped');
+  face.innerHTML = `
+    <span class="cefr-tag" style="background:${cardColor}">${c.cefr || ''}</span>
+    <div class="card-translation">${en}</div>
+    ${(exSV || exEN) ? '<div class="card-sep"></div>' : ''}
+    ${exSV ? `<div class="card-ex-sv">${exSV}</div>` : ''}
+    ${exEN ? `<div class="card-ex-en">${exEN}</div>` : ''}`;
+  document.getElementById('rv-hint-row').style.display = 'none';
+  document.getElementById('rv-rating').style.display = 'flex';
+}
+
+function rate(rating) {
+  const c = rvQueue[rvIdx];
+  if (rating === 0) {
+    // Again — re-queue at the end so user sees it again this session
+    rvQueue.push(c);
+  } else {
+    // Hard / Good / Easy — mark as reviewed
+    rvReviewedCount++;
+    c.due = false;
+    c.days = (c.days || 0) + (rating >= 3 ? (rating >= 5 ? 4 : 1) : 0);
+    // Update the source card in CARDS array
+    const ci = CARDS.findIndex(x => x === c || x.id === c.id);
+    if (ci !== -1) { CARDS[ci].due = false; CARDS[ci].days = c.days; }
+  }
+  rvIdx++;
+  if (rvIdx >= rvQueue.length) { showDone(); } else { loadRVCard(); }
+}
+
+function showDone() {
+  document.getElementById('flip-area').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:32px;text-align:center">
+      <div style="font-size:72px">🎉</div>
+      <div style="font-size:26px;font-weight:800;color:var(--text)">All done!</div>
+      <div style="font-size:15px;color:var(--muted);line-height:1.6">You reviewed <strong>${rvReviewedCount}</strong> card${rvReviewedCount === 1 ? '' : 's'}. Great work!</div>
+      <button class="btn-primary" style="margin-top:8px;width:200px" onclick="nav('home')">← Back to home</button>
+    </div>`;
+  document.getElementById('rv-bottom').innerHTML = '';
+  document.getElementById('rv-prog').style.width = '100%';
+  updateHomeStats();
+}
+
+// ── SPEAK (browser TTS) ──
+function speak(word, lang) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = lang === 'sv' ? 'sv-SE' : 'en-US';
+  u.rate = 0.85;
+  speechSynthesis.speak(u);
+}
+function speakWord() {
+  const w = document.getElementById('rv-word');
+  if (w) speak(w.textContent, 'sv');
+}
+
+// ── DECK PICKER ──
+function openDeckPicker() { document.getElementById('deck-picker').classList.add('open'); }
+function closeDeckPicker() { document.getElementById('deck-picker').classList.remove('open'); }
+
+// ── ONBOARDING ──
+const OB_LANG_NAMES  = { sv:'Swedish', en:'English', de:'German', fr:'French', es:'Spanish', ja:'Japanese' };
+const OB_DECK_MAP    = { a1:'starter-a1', a2:'starter-a2', b1:'starter-b1', b2:'starter-b2', c1:'starter-c1', c2:'starter-c2' };
+const OB_WORD_LEVELS = ['A1','B1','B2']; // levels of the 3 demo words
+let obGoal = 'a1';
+let obCardFlipped = false;
+let obWordSelected = [true, true, true]; // all selected by default
+let obAddMode = 'all';
+
+// Level select title
+function obUpdateGoalTitle() {
+  const lang = document.getElementById('ob-study-lang').value;
+  document.getElementById('ob-goal-title').textContent = `What's your ${OB_LANG_NAMES[lang]} goal?`;
+}
+
+// Goal tiles
+function obPickGoal(el, goal) {
+  document.querySelectorAll('.ob-goal-tile').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  obGoal = goal;
+}
+
+// Scan animation → show word list + footer button
+function obRunScan() {
+  ['ob-sv1','ob-sv2','ob-sv3'].forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      el.style.background = '#fef08a';
+      el.style.borderRadius = '3px';
+      el.style.padding = '0 2px';
+      el.style.fontWeight = '700';
+    }, i * 250);
+  });
+  const beam = document.getElementById('ob-beam');
+  beam.classList.add('running');
+  setTimeout(() => {
+    beam.classList.remove('running');
+    document.getElementById('ob-demo-s0').style.display = 'none';
+    document.getElementById('ob-demo-s1').style.display = 'flex';
+    document.getElementById('ob-footer-s1').style.display = 'block';
+    obSetAddMode('all'); // reset to "all" each time
+    setTimeout(() => document.getElementById('ob-demo-scroll').scrollTo({top:999,behavior:'smooth'}), 100);
+  }, 1400);
+}
+
+// Add mode switcher
+function obSetAddMode(mode) {
+  obAddMode = mode;
+  const goalLevelMap = { a1:'A1', a2:'A2', b1:'B1', b2:'B2', c1:'C1', c2:'C2' };
+  const myLevel = goalLevelMap[obGoal] || 'A1';
+  const levelOrder = ['A1','A2','B1','B2','C1','C2'];
+
+  // Pre-compute level count (independent of current selection)
+  const levelSelected = OB_WORD_LEVELS.map(wl =>
+    levelOrder.indexOf(wl) <= levelOrder.indexOf(myLevel)
+  );
+  const levelCount = levelSelected.filter(Boolean).length;
+
+  // Update selection based on mode
+  if (mode === 'all') {
+    obWordSelected = [true, true, true];
+  } else {
+    obWordSelected = levelSelected;
+  }
+  obRenderWordToggles();
+
+  // Style the two mode rows
+  const allRow   = document.getElementById('ob-add-all');
+  const levelRow = document.getElementById('ob-add-level');
+  allRow.style.background      = mode === 'all'   ? 'var(--accentL)' : '';
+  allRow.style.borderLeftColor = mode === 'all'   ? 'var(--accent)'  : 'transparent';
+  levelRow.style.background      = mode === 'level' ? 'var(--accentL)' : '';
+  levelRow.style.borderLeftColor = mode === 'level' ? 'var(--accent)'  : 'transparent';
+  document.getElementById('ob-check-all').style.opacity   = mode === 'all'   ? '1' : '0';
+  document.getElementById('ob-check-level').style.opacity = mode === 'level' ? '1' : '0';
+
+  // Update subtitles — level subtitle always shows the correct pre-computed count
+  document.getElementById('ob-all-sub').textContent   = `All ${OB_WORD_LEVELS.length} words added to your deck`;
+  document.getElementById('ob-level-sub').textContent = `${myLevel} and below · ${levelCount} of ${OB_WORD_LEVELS.length} words`;
+}
+
+// Individual word toggle
+function obToggleWord(i) {
+  obWordSelected[i] = !obWordSelected[i];
+  obAddMode = 'custom'; // user is customising manually
+  document.getElementById('ob-check-all').style.opacity   = '0';
+  document.getElementById('ob-check-level').style.opacity = '0';
+  document.getElementById('ob-add-all').style.background      = '';
+  document.getElementById('ob-add-all').style.borderLeftColor = 'transparent';
+  document.getElementById('ob-add-level').style.background      = '';
+  document.getElementById('ob-add-level').style.borderLeftColor = 'transparent';
+  obRenderWordToggles();
+}
+
+function obRenderWordToggles() {
+  obWordSelected.forEach((on, i) => {
+    const tog = document.getElementById('ob-tog-' + i);
+    const row = document.getElementById('ob-word-' + i);
+    tog.style.background = on ? 'var(--accent)' : 'var(--border)';
+    tog.innerHTML = on
+      ? '<span style="color:white;font-size:13px;font-weight:800">✓</span>'
+      : '<span style="color:var(--muted);font-size:14px;font-weight:700">+</span>';
+    row.style.opacity = on ? '1' : '0.45';
+  });
+}
+
+// Move to card flip step
+function obShowCard() {
+  document.getElementById('ob-demo-s1').style.display = 'none';
+  document.getElementById('ob-footer-s1').style.display = 'none';
+  document.getElementById('ob-demo-s2').style.display = 'flex';
+  obCardFlipped = false;
+  setTimeout(() => document.getElementById('ob-demo-scroll').scrollTo({top:0,behavior:'smooth'}), 100);
+}
+
+// Flip the demo card → show Start learning CTA
+function obFlipCard() {
+  if (obCardFlipped) return;
+  obCardFlipped = true;
+  const card = document.getElementById('ob-demo-card');
+  card.classList.add('flipped');
+  card.innerHTML = `
+    <span class="cefr-tag" style="background:var(--a1);position:absolute;top:14px;left:14px">A1</span>
+    <div class="ob-card-trans">the restaurant</div>
+    <div class="card-sep"></div>
+    <div class="ob-card-ex">"Restaurangen är öppen varje dag."<br><span style="color:#b0b0a8;font-style:normal">"The restaurant is open every day."</span></div>`;
+  setTimeout(() => {
+    document.getElementById('ob-start-btn').style.display = 'block';
+    setTimeout(() => document.getElementById('ob-demo-scroll').scrollTo({top:999,behavior:'smooth'}), 80);
+  }, 500);
+}
+
+function skipOnboarding() { nav('home'); }
+
+function finishOnboarding() {
+  nav('library');
+}
+
+// ── LANGUAGE / DIRECTION ──
+const LANG_LABELS = { sv:'SV', en:'EN', de:'DE', fr:'FR', es:'ES' };
+let dirFlipped = false;
+function updateDirection() {
+  dirFlipped = false; // reset flip when language changes
+  renderDirection();
+}
+function flipDirection() {
+  dirFlipped = !dirFlipped;
+  // spin the ⇅ icon briefly
+  const tag = document.getElementById('study-direction-tag');
+  tag.style.transform = 'scale(0.93)';
+  setTimeout(() => tag.style.transform = '', 150);
+  renderDirection();
+}
+function renderDirection() {
+  const study = LANG_LABELS[document.getElementById('lang-study').value];
+  const from  = LANG_LABELS[document.getElementById('lang-from').value];
+  document.getElementById('dir-text').textContent = dirFlipped
+    ? `${from} → ${study}`
+    : `${study} → ${from}`;
+}
+
+// ── PASTE IMPORT ──
+let fbMode = 'tab', cdMode = 'newline';
+
+function setCsvMode(mode) {
+  document.getElementById('csv-paste-btn').classList.toggle('on', mode === 'paste');
+  document.getElementById('csv-file-btn').classList.toggle('on', mode === 'file');
+  document.getElementById('csv-paste-panel').style.display = mode === 'paste' ? 'flex' : 'none';
+  document.getElementById('csv-file-panel').style.display = mode === 'file' ? 'flex' : 'none';
+}
+function setFB(mode) {
+  fbMode = mode;
+  ['tab','comma','custom'].forEach(m => document.getElementById('fb-'+m).classList.toggle('on', m === mode));
+  parsePaste();
+}
+function setCD(mode) {
+  cdMode = mode;
+  ['newline','semi','custom'].forEach(m => document.getElementById('cd-'+m).classList.toggle('on', m === mode));
+  parsePaste();
+}
+let parsedRows = [];
+
+function parsePaste() {
+  const raw = document.getElementById('paste-area').value.trim();
+  if (!raw) {
+    parsedRows = [];
+    document.getElementById('paste-preview').style.display='none';
+    document.getElementById('paste-import-btn').style.display='none';
+    return;
+  }
+
+  const fbSep = fbMode === 'tab' ? '\t' : fbMode === 'comma' ? ',' : '-';
+  const lines = cdMode === 'semi' ? raw.split(';') : raw.split('\n');
+  const CEFR_LIST = ['A1','A2','B1','B2','C1','C2'];
+  const CEFR_COLORS = {A1:'#22c55e',A2:'#14b8a6',B1:'#3b82f6',B2:'#6366f1',C1:'#f97316',C2:'#ef4444'};
+
+  parsedRows = lines.map(line => {
+    const idx = line.indexOf(fbSep);
+    if (idx === -1) return { front: line.trim(), back: '', cefr: null };
+    const front = line.slice(0, idx).trim();
+    const rest = line.slice(idx + fbSep.length).trim();
+    const parts = rest.split(fbSep);
+    const last = parts[parts.length - 1].trim().toUpperCase();
+    if (parts.length > 1 && CEFR_LIST.includes(last))
+      return { front, back: parts.slice(0,-1).join(fbSep).trim(), cefr: last };
+    return { front, back: rest, cefr: null };
+  }).filter(r => r.front);
+
+  const preview = document.getElementById('paste-preview');
+  preview.style.display = 'flex';
+  preview.innerHTML = `<div class="fld-label">CARDS PREVIEW (${parsedRows.length} cards)</div>` +
+    parsedRows.map((r,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;border:1.5px solid var(--accent);background:var(--accentL)">
+        <span style="font-size:14px;font-weight:700;color:var(--muted);width:18px">${i+1}</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${r.front}</div>
+          ${r.back ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">${r.back}</div>` : ''}
+        </div>
+        ${r.cefr ? `<span style="background:${CEFR_COLORS[r.cefr]};color:white;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:800">${r.cefr}</span>` : ''}
+      </div>`).join('');
+
+  const btn = document.getElementById('paste-import-btn');
+  btn.style.display = 'block';
+  btn.textContent = `Import ${parsedRows.length} card${parsedRows.length === 1 ? '' : 's'}`;
+}
+
+function doImportCards() {
+  if (!parsedRows.length) return;
+
+  const cefrColors = { A1:'var(--a1)', A2:'var(--a2)', B1:'var(--b1)', B2:'var(--b2)', C1:'var(--c1)', C2:'var(--c2)' };
+  const ts = Date.now();
+
+  // Resolve target deck
+  let targetDeck = null;
+
+  if (addDeckMode === 'new') {
+    // Create a brand-new deck
+    const nameEl = document.getElementById('new-deck-name');
+    const deckName = (nameEl && nameEl.value.trim()) || 'My Deck';
+    const newDeckId = 'deck-' + ts;
+    targetDeck = { id: newDeckId, name: deckName, color: 'var(--b1)', cards: [] };
+    DECKS_DATA.unshift(targetDeck);
+  } else {
+    // Add to existing selected deck
+    targetDeck = DECKS_DATA.find(d => d.id === addSelectedDeckId) || DECKS_DATA[0];
+  }
+
+  if (!targetDeck) return;
+
+  // Build card objects
+  const newCards = parsedRows.map((r, i) => {
+    const cefr = r.cefr || null;
+    return {
+      id: targetDeck.id + '-csv-' + ts + '-' + i,
+      sv: r.front, swedish: r.front,
+      en: r.back,  english: r.back,
+      cefr: cefr,
+      color: cefr ? cefrColors[cefr] : 'var(--b1)',
+      exSV: '', exEN: '',
+      exampleSentenceSV: '', exampleSentenceEN: '',
+      due: true, days: 1,
+      deckId: targetDeck.id,
+    };
+  });
+
+  // Add to global CARDS and to deck
+  CARDS.push(...newCards);
+  targetDeck.cards.push(...newCards);
+
+  // Reset the form
+  document.getElementById('paste-area').value = '';
+  document.getElementById('paste-preview').style.display = 'none';
+  document.getElementById('paste-import-btn').style.display = 'none';
+  parsedRows = [];
+
+  // Go home and show the deck
+  updateHomeStats();
+  nav('home');
+  setTimeout(() => openDeckDetail(targetDeck.id), 300);
+}
+</script>
 </body>
 </html>
